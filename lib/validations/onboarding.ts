@@ -14,6 +14,11 @@ export type Step1FormData = z.infer<typeof step1Schema>;
 
 // Step 2: KAIST academic history — all optional because some members
 // may not have certain degrees (e.g. MS-only or PhD-only alumni)
+//
+// Note on year fields: HTML <input type="number"> with `valueAsNumber` returns
+// NaN when left blank. The onboarding form handles this by using plain string
+// inputs and converting to number only when submitting, so these remain
+// z.number().optional() to preserve correct TypeScript inference.
 export const step2Schema = z.object({
   // Year the member received their Bachelor's degree from KAIST (e.g. 2010)
   kaist_bs_year: z.number().int().positive().optional(),
