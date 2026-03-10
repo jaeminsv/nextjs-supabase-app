@@ -83,9 +83,12 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
 
 > **📌 개발용 쇼케이스 페이지**: Phase 2 진행 중 컴포넌트를 시각적으로 확인하기 위해 `app/dev/page.tsx`가 임시로 존재합니다. 인증 없이 `http://localhost:3000/dev` 에서 접근 가능합니다. **Phase 3 시작 전 반드시 삭제해야 합니다** (아래 Task DEV 참고).
 
+> **📌 임시 공개 라우트**: Phase 2 UI 시각 확인을 위해 `/onboarding`과 `/pending`이 `proxy.ts`에서 임시로 인증 없이 접근 가능하도록 설정되어 있습니다 (`isPhase2PreviewRoute`). **Phase 3 시작 전 반드시 제거해야 합니다** (아래 Task DEV 참고).
+
 - **Task DEV: /dev 쇼케이스 페이지 제거** ⚠️ Phase 3 시작 전 필수 삭제
   - `app/dev/` 디렉토리 전체 삭제
   - `lib/supabase/proxy.ts`에서 `isDevRoute` 변수 및 관련 주석 제거 (isPublicRoute에서도 제거)
+  - `lib/supabase/proxy.ts`에서 `isPhase2PreviewRoute` 변수 및 관련 주석 제거 (isPublicRoute에서도 제거)
 
 - **Task 003: 공통 컴포넌트 라이브러리**
   - shadcn/ui 기반 재사용 가능한 UI 컴포넌트 구현
