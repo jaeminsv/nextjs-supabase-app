@@ -47,17 +47,74 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  if (
-    request.nextUrl.pathname !== "/" &&
-    !user &&
-    !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
+  const pathname = request.nextUrl.pathname;
+
+  // --- Route classification ---
+  // Public routes: accessible without authentication
+  const isAuthRoute = pathname.startsWith("/auth");
+  const isRootRoute = pathname === "/";
+  const isPublicRoute = isAuthRoute || isRootRoute;
+
+  // Unauthenticated user trying to access a protected route → redirect to login
+  if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
   }
+
+  // Authenticated user visiting auth pages (login, sign-up) → redirect to dashboard
+  // Exception: /auth/callback and /auth/confirm must remain accessible for OAuth flow
+  if (
+    user &&
+    isAuthRoute &&
+    !pathname.startsWith("/auth/callback") &&
+    !pathname.startsWith("/auth/confirm")
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  // --- TODO (Phase 3 - Task 011): Role-based routing ---
+  // After the profiles table is created, uncomment the following block
+  // to enforce role-based access control:
+  //
+  // if (user) {
+  //   const { data: profile } = await supabase
+  //     .from('profiles')
+  //     .select('role')
+  //     .eq('id', user.sub)
+  //     .single();
+  //   const role = profile?.role;
+  //
+  //   // Pending users can only access /pending (and logout)
+  //   if (role === 'pending' && pathname !== '/pending') {
+  //     const url = request.nextUrl.clone();
+  //     url.pathname = '/pending';
+  //     return NextResponse.redirect(url);
+  //   }
+  //
+  //   // Approved users should not access /pending or /onboarding
+  //   if (role !== 'pending' && (pathname === '/pending' || pathname === '/onboarding')) {
+  //     const url = request.nextUrl.clone();
+  //     url.pathname = '/dashboard';
+  //     return NextResponse.redirect(url);
+  //   }
+  //
+  //   // Admin-only routes: /admin/*
+  //   if (pathname.startsWith('/admin') && role !== 'admin') {
+  //     const url = request.nextUrl.clone();
+  //     url.pathname = '/dashboard';
+  //     return NextResponse.redirect(url);
+  //   }
+  //
+  //   // New user without profile → redirect to onboarding
+  //   if (!profile && pathname !== '/onboarding') {
+  //     const url = request.nextUrl.clone();
+  //     url.pathname = '/onboarding';
+  //     return NextResponse.redirect(url);
+  //   }
+  // }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
   // If you're creating a new response object with NextResponse.next() make sure to:
