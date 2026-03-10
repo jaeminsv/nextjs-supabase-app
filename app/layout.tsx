@@ -9,8 +9,8 @@ const defaultUrl = process.env.VERCEL_URL
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Next.js and Supabase Starter Kit",
-  description: "The fastest way to build apps with Next.js and Supabase",
+  title: "KAIST SV 동문회",
+  description: "KAIST 실리콘밸리 동문회 이벤트 관리",
 };
 
 const geistSans = Geist({
@@ -25,7 +25,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="ko" suppressHydrationWarning>
       <body className={`${geistSans.className} antialiased`}>
         <ThemeProvider
           attribute="class"
@@ -33,7 +33,20 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          {/*
+           * App shell wrapper — centers the app at mobile width.
+           *
+           * On mobile  : w-full, looks like a native app
+           * On desktop : max-w-[430px] centered, gray backdrop outside
+           *
+           * This ensures consistent mobile-first UX across all screen sizes,
+           * matching the target audience (smartphone-primary alumni).
+           */}
+          <div className="min-h-screen bg-zinc-100 dark:bg-zinc-900 sm:flex sm:justify-center">
+            <div className="relative w-full bg-background sm:max-w-[430px] sm:shadow-xl sm:ring-1 sm:ring-border/30">
+              {children}
+            </div>
+          </div>
         </ThemeProvider>
       </body>
     </html>
