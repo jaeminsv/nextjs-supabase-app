@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+shrimp_data/
+lib/supabase/database.types.ts

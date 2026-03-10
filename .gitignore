@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# mcp config (local tool settings)
+.mcp.json
+
+# shrimp task manager data
+shrimp_data/
