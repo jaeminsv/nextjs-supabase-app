@@ -53,7 +53,10 @@ export async function updateSession(request: NextRequest) {
   // Public routes: accessible without authentication
   const isAuthRoute = pathname.startsWith("/auth");
   const isRootRoute = pathname === "/";
-  const isPublicRoute = isAuthRoute || isRootRoute;
+  // DEV-ONLY: /dev is a public component showcase page for Phase 2 development.
+  // ⚠️  Remove this line when deleting app/dev/ before Phase 3 (see ROADMAP Task DEV).
+  const isDevRoute = pathname.startsWith("/dev");
+  const isPublicRoute = isAuthRoute || isRootRoute || isDevRoute;
 
   // Unauthenticated user trying to access a protected route → redirect to login
   if (!user && !isPublicRoute) {
