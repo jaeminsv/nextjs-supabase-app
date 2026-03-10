@@ -46,3 +46,6 @@ next-env.d.ts
 
 # shrimp task manager data
 shrimp_data/
+
+# superpowers brainstorming session artifacts
+.superpowers/
