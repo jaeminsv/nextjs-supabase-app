@@ -1,5 +1,6 @@
 import { AppHeader } from "@/components/navigation/app-header";
 import { MobileTabBar } from "@/components/navigation/mobile-tab-bar";
+import { CURRENT_USER } from "@/lib/dummy-data";
 
 /**
  * App shell layout for all authenticated (main) routes.
@@ -31,12 +32,13 @@ export default function MainLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // TODO (Phase 3): Fetch user role from profiles table
+  // Phase 2: userRole is read from CURRENT_USER dummy data.
+  // TODO (Phase 3): Fetch user role from profiles table via Supabase
   // const supabase = await createClient();
   // const { data } = await supabase.auth.getClaims();
   // const profile = await supabase.from('profiles').select('role').eq('id', data.claims.sub).single();
   // const userRole = profile.data?.role ?? 'member';
-  const userRole = "member";
+  const userRole = CURRENT_USER.role;
 
   return (
     // h-dvh: uses dynamic viewport height to handle mobile browser chrome correctly
