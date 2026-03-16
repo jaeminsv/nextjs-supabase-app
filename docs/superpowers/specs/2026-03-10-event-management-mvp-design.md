@@ -129,7 +129,7 @@ Note: Organizer is NOT a profile-level role. It is determined per-event via this
 | id           | uuid (PK)            |                                                                                                                        |
 | event_id     | uuid (FK → events)   |                                                                                                                        |
 | user_id      | uuid (FK → profiles) |                                                                                                                        |
-| amount       | numeric              | Total amount (auto-calculated: fee_amount + adult_guest_count _ adult_guest_fee + child_guest_count _ child_guest_fee) |
+| amount       | numeric              | Total amount (auto-calculated: fee*amount + adult_guest_count * adult*guest_fee + child_guest_count * child_guest_fee) |
 | method       | enum                 | venmo / zelle / paypal / other                                                                                         |
 | status       | enum                 | pending / confirmed / rejected                                                                                         |
 | confirmed_by | uuid (FK → profiles) | organizer who confirmed                                                                                                |
