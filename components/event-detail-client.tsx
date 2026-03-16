@@ -15,9 +15,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Calendar, Clock, Link2, MapPin } from "lucide-react";
+import { Calendar, Clock, Link2, MapPin, Minus, Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { EventStatusBadge } from "@/components/event-status-badge";
+import { RsvpStatusBadge } from "@/components/rsvp-status-badge";
 import { Button } from "@/components/ui/button";
 import { CURRENT_USER } from "@/lib/dummy-data";
 import type { Event } from "@/lib/types/event";
@@ -90,6 +91,11 @@ export function EventDetailClient({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Check if RSVP deadline has passed (if no deadline, RSVP is always open)
+  const isDeadlinePassed = event.rsvp_deadline
+    ? new Date() > new Date(event.rsvp_deadline)
+    : false;
+
   // Phase 2: CURRENT_USER is always a 'member', so admin actions never render.
   // Phase 3 TODO: also show for event organizers (not just global admins).
   const isAdmin = CURRENT_USER.role === "admin";
@@ -159,7 +165,123 @@ export function EventDetailClient({
           </div>
         )}
 
-        {/* TODO 006-3: RSVP section */}
+        {/* === RSVP Section === */}
+        <section className="space-y-3 rounded-lg border p-4">
+          {/* Section header with current status badge */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold">참석 여부</h2>
+            <RsvpStatusBadge status={rsvpStatus} />
+          </div>
+
+          {isDeadlinePassed ? (
+            // Show message when deadline has passed
+            <p className="text-sm text-muted-foreground">
+              참석 응답 마감일이 지났습니다.
+            </p>
+          ) : (
+            <>
+              {/* RSVP choice buttons */}
+              <div className="flex gap-2">
+                {(
+                  [
+                    { value: "going", label: "참석" },
+                    { value: "maybe", label: "미정" },
+                    { value: "not_going", label: "불참" },
+                  ] as const
+                ).map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    variant={rsvpStatus === value ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setRsvpStatus(value)}
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Guest count inputs — only shown when going */}
+              {rsvpStatus === "going" && (
+                <div className="space-y-2">
+                  {/* Adult guest counter */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">성인 동반자</span>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8"
+                        onClick={() =>
+                          setAdultGuests((n) => Math.max(0, n - 1))
+                        }
+                        disabled={adultGuests === 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-6 text-center text-sm">
+                        {adultGuests}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8"
+                        onClick={() => setAdultGuests((n) => n + 1)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Child guest counter */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">아동 동반자</span>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8"
+                        onClick={() =>
+                          setChildGuests((n) => Math.max(0, n - 1))
+                        }
+                        disabled={childGuests === 0}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-6 text-center text-sm">
+                        {childGuests}
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-8 w-8"
+                        onClick={() => setChildGuests((n) => n + 1)}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Save RSVP button */}
+              {/* Phase 3 TODO: call submitRsvp server action instead of console.log */}
+              <Button
+                className="w-full"
+                onClick={() =>
+                  console.log(
+                    "RSVP save:",
+                    rsvpStatus,
+                    adultGuests,
+                    childGuests,
+                  )
+                }
+              >
+                RSVP 저장
+              </Button>
+            </>
+          )}
+        </section>
+
         {/* TODO 006-4: Payment section */}
       </div>
     </div>
