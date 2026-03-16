@@ -111,7 +111,11 @@ export default function EventsPage() {
 
       {/* FAB: floating action button to navigate to event creation form */}
       {/* Phase 2: always visible — Phase 3 TODO: show only for admin/organizer role */}
-      <Link href="/events/new" className="fixed bottom-20 right-4">
+      <Link
+        href="/events/new"
+        aria-label="새 이벤트 만들기"
+        className="fixed bottom-20 right-4"
+      >
         <Button
           size="icon"
           aria-label="새 이벤트 만들기"
