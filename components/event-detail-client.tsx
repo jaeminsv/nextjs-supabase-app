@@ -6,12 +6,7 @@
  *
  * Receives pre-resolved event data from the Server Component (page.tsx).
  * Phase 2: Uses dummy data. Phase 3: Will call Server Actions.
- *
- * NOTE: State variables are declared here as scaffolding for Task 006-3/006-4.
- * They are intentionally unused until those tasks wire up the UI sections.
  */
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { useState } from "react";
 import Link from "next/link";
@@ -19,7 +14,15 @@ import { Calendar, Clock, Link2, MapPin, Minus, Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { EventStatusBadge } from "@/components/event-status-badge";
 import { RsvpStatusBadge } from "@/components/rsvp-status-badge";
+import { PaymentStatusBadge } from "@/components/payment-status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { CURRENT_USER } from "@/lib/dummy-data";
 import type { Event } from "@/lib/types/event";
 import type { Rsvp, RsvpStatus } from "@/lib/types/rsvp";
@@ -51,6 +54,9 @@ export function EventDetailClient({
   );
   // Controls the payment method selection Sheet
   const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
+  // Tracks which payment method the user has selected in the Sheet (default: venmo)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] =
+    useState<string>("venmo");
   // Tracks whether the share link was just copied to clipboard
   const [copied, setCopied] = useState(false);
 
@@ -99,6 +105,20 @@ export function EventDetailClient({
   // Phase 2: CURRENT_USER is always a 'member', so admin actions never render.
   // Phase 3 TODO: also show for event organizers (not just global admins).
   const isAdmin = CURRENT_USER.role === "admin";
+
+  // Calculate total fee based on current guest counts.
+  // fee_amount = base member fee, adult_guest_fee = per adult guest,
+  // child_guest_fee = per child (always 0 — children attend for free)
+  const totalFee =
+    event.fee_amount +
+    adultGuests * event.adult_guest_fee +
+    childGuests * event.child_guest_fee;
+
+  // Only members who responded 'going' are required to pay the fee
+  const canPay = rsvpStatus === "going";
+
+  // Current payment status from the initial server-resolved data (undefined if no payment yet)
+  const paymentStatus = initialPayment?.status;
 
   return (
     <div className="pb-20">
@@ -282,7 +302,138 @@ export function EventDetailClient({
           )}
         </section>
 
-        {/* TODO 006-4: Payment section */}
+        {/* === Payment Section === */}
+        <section className="space-y-3 rounded-lg border p-4">
+          <h2 className="text-base font-semibold">회비</h2>
+
+          {/* Fee breakdown — shows base fee, per-guest fees, and total */}
+          <div className="space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span>본인</span>
+              <span>${event.fee_amount}</span>
+            </div>
+            {adultGuests > 0 && (
+              <div className="flex justify-between">
+                <span>성인 동반 {adultGuests}명</span>
+                <span>${adultGuests * event.adult_guest_fee}</span>
+              </div>
+            )}
+            {childGuests > 0 && (
+              <div className="flex justify-between">
+                <span>아동 동반 {childGuests}명</span>
+                <span>무료</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t pt-1 font-semibold">
+              <span>합계</span>
+              <span>${totalFee}</span>
+            </div>
+          </div>
+
+          {/* Payment instructions provided by the organizer — may be null */}
+          {event.payment_instructions && (
+            <p className="text-sm text-muted-foreground">
+              {event.payment_instructions}
+            </p>
+          )}
+
+          {/* Payment UI — only rendered for members with rsvpStatus === 'going' */}
+          {!canPay ? (
+            <p className="text-sm text-muted-foreground">
+              참석(going)으로 응답한 경우에만 납부할 수 있습니다.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {/* confirmed: payment is fully approved — no action needed */}
+              {paymentStatus === "confirmed" && (
+                <div className="flex items-center gap-2">
+                  <PaymentStatusBadge status="confirmed" />
+                  <span className="text-sm">납부가 완료되었습니다.</span>
+                </div>
+              )}
+
+              {/* pending: payment was submitted and is awaiting organizer review */}
+              {paymentStatus === "pending" && (
+                <div className="flex items-center gap-2">
+                  <PaymentStatusBadge status="pending" />
+                  <span className="text-sm">납부 확인 중입니다.</span>
+                </div>
+              )}
+
+              {/* rejected: organizer declined the payment — member can try again */}
+              {paymentStatus === "rejected" && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <PaymentStatusBadge status="rejected" />
+                    <span className="text-sm">납부가 반려되었습니다.</span>
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={() => setPaymentSheetOpen(true)}
+                  >
+                    다시 납부하기
+                  </Button>
+                </div>
+              )}
+
+              {/* no payment record yet: show the initial pay button */}
+              {!paymentStatus && (
+                <Button
+                  className="w-full"
+                  onClick={() => setPaymentSheetOpen(true)}
+                >
+                  납부했어요
+                </Button>
+              )}
+            </div>
+          )}
+        </section>
+
+        {/* === Payment Method Sheet === */}
+        {/* Slides up from the bottom for mobile-friendly payment method selection */}
+        <Sheet open={paymentSheetOpen} onOpenChange={setPaymentSheetOpen}>
+          <SheetContent side="bottom" className="pb-8">
+            <SheetHeader>
+              <SheetTitle>납부 방법 선택</SheetTitle>
+            </SheetHeader>
+
+            {/* Payment method toggle buttons — one per supported transfer service */}
+            <div className="my-4 grid grid-cols-2 gap-2">
+              {(["venmo", "zelle", "paypal", "기타"] as const).map((method) => (
+                <Button
+                  key={method}
+                  variant={
+                    selectedPaymentMethod === method ? "default" : "outline"
+                  }
+                  onClick={() => setSelectedPaymentMethod(method)}
+                  className="capitalize"
+                >
+                  {method === "기타"
+                    ? "기타"
+                    : method.charAt(0).toUpperCase() + method.slice(1)}
+                </Button>
+              ))}
+            </div>
+
+            <SheetFooter>
+              {/* Phase 3 TODO: call reportPayment server action instead of console.log */}
+              <Button
+                className="w-full"
+                onClick={() => {
+                  console.log(
+                    "Payment reported:",
+                    selectedPaymentMethod,
+                    "amount:",
+                    totalFee,
+                  );
+                  setPaymentSheetOpen(false);
+                }}
+              >
+                납부 완료 신고
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );
