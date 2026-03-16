@@ -14,6 +14,12 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { useState } from "react";
+import Link from "next/link";
+import { Calendar, Clock, Link2, MapPin } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { EventStatusBadge } from "@/components/event-status-badge";
+import { Button } from "@/components/ui/button";
+import { CURRENT_USER } from "@/lib/dummy-data";
 import type { Event } from "@/lib/types/event";
 import type { Rsvp, RsvpStatus } from "@/lib/types/rsvp";
 import type { Payment } from "@/lib/types/payment";
@@ -44,12 +50,118 @@ export function EventDetailClient({
   );
   // Controls the payment method selection Sheet
   const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
+  // Tracks whether the share link was just copied to clipboard
+  const [copied, setCopied] = useState(false);
+
+  // Format start date/time in Korean locale (e.g. "4월 15일 오후 03:00")
+  const formattedStartDate = new Date(event.start_at).toLocaleDateString(
+    "ko-KR",
+    {
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    },
+  );
+
+  // Format end time only (e.g. "오후 06:00") — null if event has no end_at
+  const formattedEndDate = event.end_at
+    ? new Date(event.end_at).toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  // Format RSVP deadline in Korean locale — null if event has no deadline
+  const formattedDeadline = event.rsvp_deadline
+    ? new Date(event.rsvp_deadline).toLocaleDateString("ko-KR", {
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  // Copy the current page URL to the clipboard and briefly show a confirmation
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    // Reset button label back to default after 2 seconds
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Phase 2: CURRENT_USER is always a 'member', so admin actions never render.
+  // Phase 3 TODO: also show for event organizers (not just global admins).
+  const isAdmin = CURRENT_USER.role === "admin";
 
   return (
     <div className="pb-20">
-      {/* TODO 006-2: PageHeader + EventInfo section + copy link + admin actions */}
-      {/* TODO 006-3: RSVP section */}
-      {/* TODO 006-4: Payment section + payment Sheet */}
+      {/* Back button + page title */}
+      <PageHeader title={event.title} backHref="/events" />
+
+      <div className="space-y-4 p-4">
+        {/* === Event Info Section === */}
+        <section className="space-y-3">
+          {/* Published / draft / cancelled status pill */}
+          <EventStatusBadge status={event.status} />
+
+          {/* Start date and time */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4 shrink-0" />
+            <span>{formattedStartDate}</span>
+          </div>
+
+          {/* End time — only rendered when the event has an end_at value */}
+          {event.end_at && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4 shrink-0" />
+              <span>종료: {formattedEndDate}</span>
+            </div>
+          )}
+
+          {/* Physical location of the event */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4 shrink-0" />
+            <span>{event.location}</span>
+          </div>
+
+          {/* Long-form description — preserves line breaks entered by the organizer */}
+          {event.description && (
+            <p className="whitespace-pre-wrap text-sm">{event.description}</p>
+          )}
+
+          {/* RSVP deadline — only rendered when the event has a deadline */}
+          {event.rsvp_deadline && (
+            <p className="text-sm text-muted-foreground">
+              RSVP 마감: {formattedDeadline}
+            </p>
+          )}
+        </section>
+
+        {/* Copy current page URL to clipboard */}
+        <Button variant="outline" className="w-full" onClick={handleCopyLink}>
+          <Link2 className="mr-2 h-4 w-4" />
+          {copied ? "복사됨!" : "이벤트 링크 복사"}
+        </Button>
+
+        {/* Admin/organizer actions — hidden in Phase 2 because CURRENT_USER.role === 'member' */}
+        {/* Phase 3 TODO: also show for event organizers */}
+        {isAdmin && (
+          <div className="flex gap-2">
+            <Button asChild variant="outline" className="flex-1">
+              <Link href={`/events/${event.id}/edit`}>이벤트 수정</Link>
+            </Button>
+            <Button asChild variant="outline" className="flex-1">
+              <Link href={`/events/${event.id}/manage`}>
+                참석자 & 회비 관리
+              </Link>
+            </Button>
+          </div>
+        )}
+
+        {/* TODO 006-3: RSVP section */}
+        {/* TODO 006-4: Payment section */}
+      </div>
     </div>
   );
 }
