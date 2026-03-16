@@ -42,39 +42,39 @@
 
 ## 개발 단계
 
-### Phase 1: 애플리케이션 골격 구축
+### Phase 1: 애플리케이션 골격 구축 ✅
 
 UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, TypeScript 타입, 데이터베이스 스키마 설계를 먼저 완성합니다.
 
-- **Task 001: 라우트 구조 및 레이아웃 설정** - 우선순위
-  - `app/` 하위에 모든 페이지 라우트 파일을 플레이스홀더 콘텐츠로 생성
-    - `/` (인증된 사용자는 대시보드로 리다이렉트)
-    - `/auth/login` (이미 존재 — 검토 후 조정)
-    - `/onboarding` (첫 로그인 사용자용 회원가입 위저드)
-    - `/pending` (승인 대기 페이지)
-    - `/dashboard` (홈 — 예정 이벤트 요약)
-    - `/events` (이벤트 목록 페이지)
-    - `/events/new` (이벤트 생성 페이지)
-    - `/events/[id]` (이벤트 상세 페이지)
-    - `/events/[id]/edit` (이벤트 수정 페이지)
-    - `/events/[id]/manage` (참석자 및 회비 관리 페이지)
-    - `/profile` (내 프로필 페이지)
-    - `/admin/members` (회원 관리 페이지 — 관리자 전용)
-  - 모바일 하단 탭 바가 포함된 공유 레이아웃 구현 (홈, 이벤트, 프로필, 회원관리)
-  - 역할 기반 탭 표시 설정 (회원관리 탭은 관리자에게만 표시)
-  - `proxy.ts` 업데이트: 역할 기반 라우트 보호 (pending 사용자는 `/pending`으로 리다이렉트)
+- **Task 001: 라우트 구조 및 레이아웃 설정** ✅ - 완료
+  - ✅ `app/` 하위에 모든 페이지 라우트 파일을 플레이스홀더 콘텐츠로 생성
+    - ✅ `/` (인증된 사용자는 대시보드로 리다이렉트)
+    - ✅ `/auth/login` (이미 존재 — 검토 후 조정)
+    - ✅ `/onboarding` (첫 로그인 사용자용 회원가입 위저드)
+    - ✅ `/pending` (승인 대기 페이지)
+    - ✅ `/dashboard` (홈 — 예정 이벤트 요약)
+    - ✅ `/events` (이벤트 목록 페이지)
+    - ✅ `/events/new` (이벤트 생성 페이지)
+    - ✅ `/events/[id]` (이벤트 상세 페이지)
+    - ✅ `/events/[id]/edit` (이벤트 수정 페이지)
+    - ✅ `/events/[id]/manage` (참석자 및 회비 관리 페이지)
+    - ✅ `/profile` (내 프로필 페이지)
+    - ✅ `/admin/members` (회원 관리 페이지 — 관리자 전용)
+  - ✅ 모바일 하단 탭 바가 포함된 공유 레이아웃 구현 (홈, 이벤트, 프로필, 회원관리)
+  - ✅ 역할 기반 탭 표시 설정 (회원관리 탭은 관리자에게만 표시)
+  - ✅ `proxy.ts` 업데이트: 역할 기반 라우트 보호 (pending 사용자는 `/pending`으로 리다이렉트)
 
-- **Task 002: TypeScript 타입 정의 및 검증 스키마**
-  - `lib/types/`에 TypeScript 인터페이스 및 enum 정의
-    - `profile.ts`: Profile, ProfileRole (pending/member/admin)
-    - `event.ts`: Event, EventStatus (draft/published/cancelled/completed), EventOrganizer
-    - `rsvp.ts`: Rsvp, RsvpStatus (going/maybe/not_going)
-    - `payment.ts`: Payment, PaymentStatus (pending/confirmed/rejected), PaymentMethod (venmo/zelle/paypal/other)
-  - `lib/validations/`에 Zod 검증 스키마 정의
-    - `onboarding.ts`: Step 1 (필수 정보), Step 2 (KAIST 학력), Step 3 (직장 + 납부 수단)
-    - `event.ts`: 이벤트 생성/수정 폼 검증
-    - `rsvp.ts`: RSVP 제출 검증
-    - `profile.ts`: 프로필 수정 검증
+- **Task 002: TypeScript 타입 정의 및 검증 스키마** ✅ - 완료
+  - ✅ `lib/types/`에 TypeScript 인터페이스 및 enum 정의
+    - ✅ `profile.ts`: Profile, ProfileRole (pending/member/admin)
+    - ✅ `event.ts`: Event, EventStatus (draft/published/cancelled/completed), EventOrganizer
+    - ✅ `rsvp.ts`: Rsvp, RsvpStatus (going/maybe/not_going)
+    - ✅ `payment.ts`: Payment, PaymentStatus (pending/confirmed/rejected), PaymentMethod (venmo/zelle/paypal/other)
+  - ✅ `lib/validations/`에 Zod 검증 스키마 정의
+    - ✅ `onboarding.ts`: Step 1 (필수 정보), Step 2 (KAIST 학력), Step 3 (직장 + 납부 수단)
+    - ✅ `event.ts`: 이벤트 생성/수정 폼 검증
+    - ✅ `rsvp.ts`: RSVP 제출 검증
+    - ✅ `profile.ts`: 프로필 수정 검증
   - 참고: DB 마이그레이션 SQL 설계는 Phase 2 UI/UX 완성 후 Phase 3 (Task 010)에서 진행
 
 ### Phase 2: UI/UX 구현 (더미 데이터 활용)
@@ -90,47 +90,47 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
   - `lib/supabase/proxy.ts`에서 `isDevRoute` 변수 및 관련 주석 제거 (isPublicRoute에서도 제거)
   - `lib/supabase/proxy.ts`에서 `isPhase2PreviewRoute` 변수 및 관련 주석 제거 (isPublicRoute에서도 제거)
 
-- **Task 003: 공통 컴포넌트 라이브러리**
-  - shadcn/ui 기반 재사용 가능한 UI 컴포넌트 구현
-    - `EventCard`: 제목, 날짜, 장소, RSVP 상태 배지, 정원 표시
-    - `RsvpStatusBadge`: going/maybe/not_going/미응답 상태 배지
-    - `PaymentStatusBadge`: 미납부/확인 대기/납부 완료/반려 상태 배지
-    - `EventStatusBadge`: draft/published/cancelled/completed 상태 배지
-    - `MobileTabBar`: 역할 기반 탭 렌더링이 포함된 하단 네비게이션
-    - `PageHeader`: 뒤로가기 네비게이션이 포함된 일관된 페이지 헤더
-    - `EmptyState`: 빈 목록용 플레이스홀더
-    - `UserAvatar`: 표시 이름이 포함된 프로필 아바타
-  - `lib/dummy-data/`에 더미 데이터 유틸리티 생성
-    - 샘플 프로필 (관리자, 회원, 대기 중 사용자)
-    - 샘플 이벤트 (예정, 지난, 초안, 취소됨)
-    - 샘플 RSVP 및 납부 데이터
+- **Task 003: 공통 컴포넌트 라이브러리** ✅ - 완료
+  - ✅ shadcn/ui 기반 재사용 가능한 UI 컴포넌트 구현
+    - ✅ `EventCard`: 제목, 날짜, 장소, RSVP 상태 배지, 정원 표시
+    - ✅ `RsvpStatusBadge`: going/maybe/not_going/미응답 상태 배지
+    - ✅ `PaymentStatusBadge`: 미납부/확인 대기/납부 완료/반려 상태 배지
+    - ✅ `EventStatusBadge`: draft/published/cancelled/completed 상태 배지
+    - ✅ `MobileTabBar`: 역할 기반 탭 렌더링이 포함된 하단 네비게이션
+    - ✅ `PageHeader`: 뒤로가기 네비게이션이 포함된 일관된 페이지 헤더
+    - ✅ `EmptyState`: 빈 목록용 플레이스홀더
+    - ✅ `UserAvatar`: 표시 이름이 포함된 프로필 아바타
+  - ✅ `lib/dummy-data/`에 더미 데이터 유틸리티 생성
+    - ✅ 샘플 프로필 (관리자, 회원, 대기 중 사용자)
+    - ✅ 샘플 이벤트 (예정, 지난, 초안, 취소됨)
+    - ✅ 샘플 RSVP 및 납부 데이터
 
-- **Task 004: 인증 플로우 UI (로그인, 온보딩, 승인 대기)**
-  - 기존 로그인 페이지를 동문회 앱 브랜딩으로 리팩터링
-    - KAIST 실리콘밸리 동문회 브랜딩 및 환영 메시지
-    - Google OAuth 로그인 버튼 (이미 동작 중)
-  - 온보딩 위저드 UI 구현 (3단계 폼)
-    - Step 1: 실명, 표시 이름, 연락처 (필수 필드)
-    - Step 2: KAIST 학력 정보 (학사/석사/박사 졸업 연도 및 전공, 석·박사 통합과정 토글)
-    - Step 3: 회사명, 직책, 납부 수단 (Venmo/Zelle 핸들)
-    - 진행률 표시, 이전/다음 버튼, 제출 버튼
-    - React Hook Form + Zod 단계별 검증
-  - 승인 대기 페이지 UI 구현
-    - "관리자 승인을 기다리고 있습니다" 안내 메시지
-    - 관리자 연락 방법 안내
-    - 로그아웃 버튼
+- **Task 004: 인증 플로우 UI (로그인, 온보딩, 승인 대기)** ✅ - 완료
+  - ✅ 기존 로그인 페이지를 동문회 앱 브랜딩으로 리팩터링
+    - ✅ KAIST 실리콘밸리 동문회 브랜딩 및 환영 메시지
+    - ✅ Google OAuth 로그인 버튼 (이미 동작 중)
+  - ✅ 온보딩 위저드 UI 구현 (3단계 폼)
+    - ✅ Step 1: 실명, 표시 이름, 연락처 (필수 필드)
+    - ✅ Step 2: KAIST 학력 정보 (학사/석사/박사 졸업 연도 및 전공, 석·박사 통합과정 토글)
+    - ✅ Step 3: 회사명, 직책, 납부 수단 (Venmo/Zelle 핸들)
+    - ✅ 진행률 표시, 이전/다음 버튼, 제출 버튼
+    - ✅ React Hook Form + Zod 단계별 검증
+  - ✅ 승인 대기 페이지 UI 구현
+    - ✅ "관리자 승인을 기다리고 있습니다" 안내 메시지
+    - ✅ 관리자 연락 방법 안내
+    - ✅ 로그아웃 버튼
 
-- **Task 005: 대시보드 및 이벤트 목록 UI**
-  - 대시보드 페이지 UI 구현
-    - 예정 이벤트 목록 (3~5개 카드, 날짜순 정렬)
-    - RSVP 상태 배지가 포함된 이벤트 카드
-    - 미납부 이벤트 알림 배너 ("납부 대기 이벤트 N개")
-    - 이벤트 목록으로 이동하는 "전체 보기" 링크
-  - 이벤트 목록 페이지 UI 구현
-    - 예정/지난 이벤트 토글 필터
-    - 제목, 날짜, 장소, 정원, RSVP 상태가 포함된 이벤트 카드
-    - 이벤트 상태 배지 (published/cancelled/completed)
-    - "이벤트 만들기" 플로팅 액션 버튼 (관리자/주최자만 표시)
+- **Task 005: 대시보드 및 이벤트 목록 UI** ✅ - 완료
+  - ✅ 대시보드 페이지 UI 구현
+    - ✅ 예정 이벤트 목록 (3~5개 카드, 날짜순 정렬)
+    - ✅ RSVP 상태 배지가 포함된 이벤트 카드
+    - ✅ 미납부 이벤트 알림 배너 ("납부 대기 이벤트 N개")
+    - ✅ 이벤트 목록으로 이동하는 "전체 보기" 링크
+  - ✅ 이벤트 목록 페이지 UI 구현
+    - ✅ 예정/지난 이벤트 토글 필터
+    - ✅ 제목, 날짜, 장소, 정원, RSVP 상태가 포함된 이벤트 카드
+    - ✅ 이벤트 상태 배지 (published/cancelled/completed)
+    - ✅ "이벤트 만들기" 플로팅 액션 버튼 (관리자/주최자만 표시)
 
 - **Task 006: 이벤트 상세 페이지 UI**
   - 모든 섹션이 포함된 이벤트 상세 페이지 구현
