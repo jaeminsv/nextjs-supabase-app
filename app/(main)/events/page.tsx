@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Event list page — shows upcoming and past events with a tab toggle.
  *
@@ -11,7 +13,6 @@
  * - Phase 2: always visible
  * - Phase 3 TODO: show only for admin/organizer role
  */
-"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -57,9 +58,12 @@ export default function EventsPage() {
   return (
     <div className="relative min-h-full">
       {/* Tab toggle row — switches between upcoming and past events */}
-      <div className="flex border-b">
+      {/* role="tablist" wraps the tabs; each button has role="tab" for aria-selected support */}
+      <div role="tablist" className="flex border-b">
         <button
+          role="tab"
           onClick={() => setActiveTab("upcoming")}
+          aria-selected={activeTab === "upcoming"}
           className={`px-4 py-3 text-sm font-medium ${
             activeTab === "upcoming"
               ? "border-b-2 border-primary font-semibold"
@@ -69,7 +73,9 @@ export default function EventsPage() {
           예정
         </button>
         <button
+          role="tab"
           onClick={() => setActiveTab("past")}
+          aria-selected={activeTab === "past"}
           className={`px-4 py-3 text-sm font-medium ${
             activeTab === "past"
               ? "border-b-2 border-primary font-semibold"
@@ -106,7 +112,11 @@ export default function EventsPage() {
       {/* FAB: floating action button to navigate to event creation form */}
       {/* Phase 2: always visible — Phase 3 TODO: show only for admin/organizer role */}
       <Link href="/events/new" className="fixed bottom-20 right-4">
-        <Button size="icon" className="h-14 w-14 rounded-full shadow-lg">
+        <Button
+          size="icon"
+          aria-label="새 이벤트 만들기"
+          className="h-14 w-14 rounded-full shadow-lg"
+        >
           <Plus className="h-6 w-6" />
         </Button>
       </Link>
