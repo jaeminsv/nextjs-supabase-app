@@ -79,12 +79,26 @@ export async function updateSession(request: NextRequest) {
   // For authenticated users, query the profiles table to determine their role
   // and redirect them to the appropriate page based on their onboarding/approval status.
   if (user) {
-    // Fetch only the minimum columns needed for routing decisions
-    const { data: profile } = await supabase
+    // Fetch only the minimum columns needed for routing decisions.
+    // Track the error separately so we can skip routing if the query fails
+    // (e.g., rate limit or transient network error) to prevent redirect loops.
+    const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role, full_name")
       .eq("id", user.sub)
       .single();
+
+    // If the profile query fails (rate limit, network error, etc.),
+    // skip all role-based redirects and let the page handle the missing data.
+    // This prevents infinite redirect loops caused by null profile propagating
+    // through the routing checks.
+    if (profileError) {
+      console.error(
+        "[proxy] profile query failed, skipping role routing:",
+        profileError.message,
+      );
+      return supabaseResponse;
+    }
 
     // Use a typed string variable to safely compare role values
     const role = profile?.role as string | undefined;
@@ -98,15 +112,26 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // 2. Pending users: can only access /pending (awaiting admin approval)
-    if (role === "pending" && pathname !== "/pending") {
+    // 2. Pending users: can only access /pending (awaiting admin approval).
+    // Exception: /onboarding must remain accessible so new users can complete
+    // their profile before being redirected to /pending.
+    // Without this exception, check 1 (full_name empty → /onboarding) and
+    // check 2 (role=pending → /pending) would create an infinite redirect loop.
+    if (
+      role === "pending" &&
+      pathname !== "/pending" &&
+      pathname !== "/onboarding"
+    ) {
       const url = request.nextUrl.clone();
       url.pathname = "/pending";
       return NextResponse.redirect(url);
     }
 
-    // 3. Approved users (member/admin): should not be able to access /pending or /onboarding
+    // 3. Approved users (member/admin): should not be able to access /pending or /onboarding.
+    // Guard with `profile` check: if profile is null (query succeeded but row missing),
+    // do NOT redirect from /onboarding — the user needs to fill it in first.
     if (
+      profile &&
       role !== "pending" &&
       (pathname === "/pending" || pathname === "/onboarding")
     ) {

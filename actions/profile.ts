@@ -38,21 +38,22 @@ export async function createProfile(
 ): Promise<{ success?: true; error?: string }> {
   const supabase = await createClient();
 
-  // Verify the user is authenticated before attempting any DB write
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  // Verify the user is authenticated using getClaims() instead of getUser().
+  // getClaims() reads the JWT from the cookie locally without a network round-trip,
+  // which avoids Supabase Auth API rate limits (429) that getUser() can trigger.
+  // RLS policies enforce authorization at the DB level as an additional safeguard.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const claims = claimsData?.claims;
 
-  if (authError || !user) {
+  if (!claims) {
     return { error: "Not authenticated. Please sign in again." };
   }
 
   // Build the profile payload using the DB Insert type for type safety.
   // role is always set to 'pending' — admin must approve before member access.
   const profile: ProfileInsert = {
-    id: user.id,
-    email: user.email ?? "",
+    id: claims.sub,
+    email: claims.email ?? "",
     role: "pending",
     full_name: data.full_name,
     display_name: data.display_name,

@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import { AppHeader } from "@/components/navigation/app-header";
 import { MobileTabBar } from "@/components/navigation/mobile-tab-bar";
-import { CURRENT_USER } from "@/lib/dummy-data";
+import { createClient } from "@/lib/supabase/server";
 
 /**
  * App shell layout for all authenticated (main) routes.
@@ -23,29 +24,40 @@ import { CURRENT_USER } from "@/lib/dummy-data";
  * Because the entire app is already constrained to max-w-[430px] in
  * the root layout, no fixed positioning is needed here — the header
  * and tab bar stay in place naturally via flex column layout.
- *
- * Phase 1: userRole is hardcoded as 'member' (no DB yet).
- * Phase 3 (Task 011): Replace with actual role fetched from profiles table.
  */
-export default function MainLayout({
+export default async function MainLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Phase 2: userRole is read from CURRENT_USER dummy data.
-  // TODO (Phase 3): Fetch user role from profiles table via Supabase
-  // const supabase = await createClient();
-  // const { data } = await supabase.auth.getClaims();
-  // const profile = await supabase.from('profiles').select('role').eq('id', data.claims.sub).single();
-  // const userRole = profile.data?.role ?? 'member';
-  const userRole = CURRENT_USER.role;
+  // Fetch the current user's role to show role-based tabs (e.g. admin menu).
+  // Uses getClaims() for the user ID (no network call), then queries the profile.
+  // Falls back to 'member' if the query fails so the layout always renders.
+  const supabase = await createClient();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub;
+
+  let userRole: "member" | "admin" = "member";
+  if (userId) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+    if (profile?.role === "admin") {
+      userRole = "admin";
+    }
+  }
 
   return (
     // h-dvh: uses dynamic viewport height to handle mobile browser chrome correctly
     <div className="flex h-dvh flex-col">
       <AppHeader />
       <main className="flex-1 overflow-y-auto">{children}</main>
-      <MobileTabBar userRole={userRole} />
+      {/* Suspense boundary required by cacheComponents mode for Client Components using usePathname */}
+      <Suspense fallback={<div className="h-16 border-t" />}>
+        <MobileTabBar userRole={userRole} />
+      </Suspense>
     </div>
   );
 }
