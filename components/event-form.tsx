@@ -5,24 +5,15 @@
  *
  * Used on both /events/new (create) and /events/[id]/edit (edit) pages.
  *
- * Sections rendered in this task (Task 007-1):
- *   - Basic Info: title, description, location
- *   - Schedule: start_at, end_at, rsvp_deadline
- *
- * Sections deferred to Task 007-2:
- *   - Fees: fee_amount, adult_guest_fee, child_guest_fee, payment_instructions
- *   - Settings: max_capacity, status
- *   - Action buttons (save draft / publish)
- *
  * Internal form schema uses string types for all date/time and numeric fields
- * to avoid NaN issues caused by HTML inputs + zodResolver (see onboarding page).
- * Conversion to proper types will happen at submit time in Phase 3 (Task 015).
+ * to avoid NaN/validation errors from HTML inputs + zodResolver.
+ * Conversion to proper EventFormData types (ISO string, number) happens at submit time.
  *
- * Phase 2: form data is only logged to the console.
- * Phase 3 (Task 015): will call createEvent / updateEvent server actions.
+ * Organizer management (adding/removing co-organizers) is deferred to Task 015.
  */
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -31,7 +22,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { EventFormData } from "@/lib/validations/event";
-import { CURRENT_USER, ALL_PROFILES } from "@/lib/dummy-data";
+import {
+  createEvent,
+  updateEvent,
+  publishEvent,
+  cancelEvent,
+  completeEvent,
+} from "@/actions/events";
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -82,9 +79,56 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Converts a datetime-local string ("YYYY-MM-DDTHH:mm") to a full ISO 8601
+ * string with seconds and UTC offset ("YYYY-MM-DDTHH:mm:00.000Z").
+ * Returns undefined if the input is empty or falsy.
+ */
+function toIsoString(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  // datetime-local strings lack seconds and timezone; append them for ISO compliance
+  return new Date(value).toISOString();
+}
+
+/**
+ * Converts the raw string-typed form values to the EventFormData shape
+ * expected by the Server Actions (createEvent / updateEvent).
+ */
+function toEventFormData(data: FormValues): EventFormData {
+  return {
+    title: data.title,
+    description: data.description || undefined,
+    location: data.location,
+    // Convert datetime-local string → full ISO timestamp
+    start_at: toIsoString(data.start_at)!,
+    end_at: toIsoString(data.end_at),
+    rsvp_deadline: toIsoString(data.rsvp_deadline),
+    // Convert string → number (parseFloat handles decimals; fallback to 0)
+    fee_amount: parseFloat(data.fee_amount) || 0,
+    adult_guest_fee: parseFloat(data.adult_guest_fee) || 0,
+    child_guest_fee: parseFloat(data.child_guest_fee) || 0,
+    payment_instructions: data.payment_instructions || undefined,
+    // Convert string → integer, or undefined if empty
+    max_capacity: data.max_capacity
+      ? parseInt(data.max_capacity, 10)
+      : undefined,
+    status: data.status,
+  };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function EventForm({ mode, defaultValues }: EventFormProps) {
+export function EventForm({ mode, defaultValues, eventId }: EventFormProps) {
+  const router = useRouter();
+
+  // Track whether a server action is in flight to disable buttons during submission
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Store server-side error messages for display below the action buttons
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -118,40 +162,86 @@ export function EventForm({ mode, defaultValues }: EventFormProps) {
     },
   });
 
-  // Check if current user is an admin (Phase 2: always false since CURRENT_USER is 'member')
-  const isAdmin = CURRENT_USER.role === "admin";
-
-  // Track selected organizer profile IDs
-  // Initialize with the event creator as default organizer in edit mode
-  const [organizerIds, setOrganizerIds] = useState<string[]>(
-    (defaultValues as { created_by?: string })?.created_by
-      ? [(defaultValues as { created_by?: string }).created_by!]
-      : [],
-  );
-
-  // Toggle organizer selection — add if not present, remove if already selected
-  const toggleOrganizer = (id: string) => {
-    setOrganizerIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
-  };
+  // Watch the status field to conditionally render status-transition buttons
+  const currentStatus = watch("status");
 
   // Controls the description field tab: "edit" shows textarea, "preview" shows rendered text
   const [descriptionTab, setDescriptionTab] = useState<"edit" | "preview">(
     "edit",
   );
 
-  // Watch the status field to conditionally render action buttons
-  const currentStatus = watch("status");
+  /**
+   * Handles the main save/create form submission.
+   * Converts internal string form values to EventFormData types, then calls
+   * the appropriate Server Action based on the current mode.
+   */
+  const onSubmit = async (data: FormValues) => {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    const eventData = toEventFormData(data);
+
+    if (mode === "create") {
+      // Create a new event as draft, then navigate to its detail page
+      const result = await createEvent(eventData);
+      if (result.error) {
+        setErrorMessage(result.error);
+        setIsSubmitting(false);
+        return;
+      }
+      // Navigate to the newly created event's detail page
+      router.push(`/events/${result.eventId}`);
+    } else {
+      // Update the existing event fields
+      if (!eventId) {
+        setErrorMessage("이벤트 ID가 없습니다.");
+        setIsSubmitting(false);
+        return;
+      }
+      const result = await updateEvent(eventId, eventData);
+      if (result.error) {
+        setErrorMessage(result.error);
+        setIsSubmitting(false);
+        return;
+      }
+      router.push(`/events/${eventId}`);
+    }
+
+    setIsSubmitting(false);
+  };
 
   /**
-   * Form submit handler.
-   * Phase 2: logs form data to console only.
-   * Phase 3 (Task 015): will call createEvent or updateEvent server action.
+   * Handles status transition actions (publish, cancel, complete).
+   * First saves the current form field values, then transitions the status.
+   * Called directly from button onClick — not from handleSubmit — because
+   * status changes are separate from field edits.
    */
-  const onSubmit = (data: FormValues) => {
-    console.log("submit:", data);
-    // TODO Phase 3 (Task 015): call createEvent / updateEvent server action
+  const handleStatusAction = async (
+    action: "publish" | "cancel" | "complete",
+  ) => {
+    if (!eventId) return;
+
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    let result: { success?: true; error?: string };
+
+    if (action === "publish") {
+      result = await publishEvent(eventId);
+    } else if (action === "cancel") {
+      result = await cancelEvent(eventId);
+    } else {
+      result = await completeEvent(eventId);
+    }
+
+    if (result.error) {
+      setErrorMessage(result.error);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Refresh the current page so the updated status is reflected
+    router.push(`/events/${eventId}`);
   };
 
   return (
@@ -319,115 +409,65 @@ export function EventForm({ mode, defaultValues }: EventFormProps) {
         </div>
       </section>
 
-      {/* ─── Organizer Management Section (admin only) ─────────────────────────────── */}
-      {/* Phase 3 TODO: replace with real event_organizers table queries */}
-      {isAdmin && (
-        <section className="space-y-3 rounded-lg border p-4">
-          <h2 className="text-base font-semibold">주최자 관리</h2>
-          {/* List all non-pending profiles as organizer candidates */}
-          {ALL_PROFILES.filter((p) => p.role !== "pending").map((profile) => (
-            <div key={profile.id} className="flex items-center justify-between">
-              <span className="text-sm">
-                {profile.display_name}{" "}
-                <span className="text-muted-foreground">({profile.role})</span>
-              </span>
-              {/* Toggle button: default variant = selected, outline = unselected */}
-              <Button
-                type="button"
-                size="sm"
-                variant={
-                  organizerIds.includes(profile.id) ? "default" : "outline"
-                }
-                onClick={() => toggleOrganizer(profile.id)}
-              >
-                {organizerIds.includes(profile.id) ? "선택됨" : "선택"}
-              </Button>
-            </div>
-          ))}
-        </section>
+      {/* ─── Organizer Management Section ────────────────────────────────────── */}
+      {/* TODO (Task 015): implement organizer add/remove with real profiles query */}
+
+      {/* ─── Server-side Error Message ───────────────────────────────────────── */}
+      {errorMessage && (
+        <p className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {errorMessage}
+        </p>
       )}
 
       {/* ─── Action Buttons ───────────────────────────────────────────── */}
-      {/* Phase 3 TODO: replace console.log with createEvent / updateEvent server action */}
       <div className="space-y-2">
         {mode === "create" ? (
-          /* Create mode: save as draft */
-          <Button
-            type="button"
-            className="w-full"
-            onClick={handleSubmit((data) =>
-              console.log("Action: save-draft", {
-                ...data,
-                status: "draft",
-                organizerIds,
-              }),
-            )}
-          >
-            초안 저장
+          /* Create mode: submit the form to save as draft */
+          <Button type="submit" className="w-full" disabled={isSubmitting}>
+            {isSubmitting ? "저장 중..." : "초안 저장"}
           </Button>
         ) : (
           /* Edit mode: action buttons depend on current event status */
           <>
-            {/* Always show Save to update current fields */}
-            <Button
-              type="button"
-              className="w-full"
-              onClick={handleSubmit((data) =>
-                console.log("Action: save", { ...data, organizerIds }),
-              )}
-            >
-              저장
+            {/* Save updated field values without changing status */}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? "저장 중..." : "저장"}
             </Button>
 
-            {/* Draft → Published */}
+            {/* Draft → Published: make the event visible to members */}
             {currentStatus === "draft" && (
               <Button
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={handleSubmit((data) =>
-                  console.log("Action: publish", {
-                    ...data,
-                    status: "published",
-                    organizerIds,
-                  }),
-                )}
+                disabled={isSubmitting}
+                onClick={() => handleStatusAction("publish")}
               >
                 게시하기
               </Button>
             )}
 
-            {/* Published → Cancelled */}
+            {/* Published → Cancelled: cancel without hard-deleting */}
             {currentStatus === "published" && (
               <Button
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={handleSubmit((data) =>
-                  console.log("Action: cancel", {
-                    ...data,
-                    status: "cancelled",
-                    organizerIds,
-                  }),
-                )}
+                disabled={isSubmitting}
+                onClick={() => handleStatusAction("cancel")}
               >
                 이벤트 취소
               </Button>
             )}
 
-            {/* Published → Completed */}
+            {/* Published → Completed: mark the event as done */}
             {currentStatus === "published" && (
               <Button
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={handleSubmit((data) =>
-                  console.log("Action: complete", {
-                    ...data,
-                    status: "completed",
-                    organizerIds,
-                  }),
-                )}
+                disabled={isSubmitting}
+                onClick={() => handleStatusAction("complete")}
               >
                 완료 처리
               </Button>

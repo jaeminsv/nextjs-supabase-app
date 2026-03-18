@@ -23,7 +23,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { CURRENT_USER } from "@/lib/dummy-data";
 import type { Event } from "@/lib/types/event";
 import type { Rsvp, RsvpStatus } from "@/lib/types/rsvp";
 import type { Payment } from "@/lib/types/payment";
@@ -102,9 +101,9 @@ export function EventDetailClient({
     ? new Date() > new Date(event.rsvp_deadline)
     : false;
 
-  // Phase 2: CURRENT_USER is always a 'member', so admin actions never render.
-  // Phase 3 TODO: also show for event organizers (not just global admins).
-  const isAdmin = CURRENT_USER.role === "admin";
+  // TODO (Task 015): derive isAdmin from the authenticated user's profile role.
+  // Admin/organizer actions (edit, manage) are hidden until role check is wired up.
+  const isAdmin = false;
 
   // Calculate total fee based on current guest counts.
   // fee_amount = base member fee, adult_guest_fee = per adult guest,
@@ -170,8 +169,7 @@ export function EventDetailClient({
           {copied ? "복사됨!" : "이벤트 링크 복사"}
         </Button>
 
-        {/* Admin/organizer actions — hidden in Phase 2 because CURRENT_USER.role === 'member' */}
-        {/* Phase 3 TODO: also show for event organizers */}
+        {/* Admin/organizer actions — hidden until role check is wired (Task 015) */}
         {isAdmin && (
           <div className="flex gap-2">
             <Button asChild variant="outline" className="flex-1">

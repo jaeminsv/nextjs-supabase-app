@@ -1,7 +1,6 @@
 /**
  * Create event page — form to create a new event.
- *
- * Phase 2: console.log only. Phase 3: will call createEvent server action.
+ * Submits via the createEvent Server Action in actions/events.ts.
  */
 import { PageHeader } from "@/components/page-header";
 import { EventForm } from "@/components/event-form";

@@ -1,56 +1,58 @@
 // Dashboard page — Server Component (no 'use client' needed)
-// Shows a greeting, unpaid event alert, and list of upcoming events.
+// Shows a greeting, unpaid event alert placeholder, and list of upcoming events.
+//
+// NOTE (cacheComponents mode): Supabase data fetching is isolated inside
+// <DashboardContent> which is wrapped in <Suspense>. This satisfies the
+// Next.js 16 cacheComponents requirement that uncached data access must
+// happen inside a Suspense boundary.
 
+import { Suspense } from "react";
 import Link from "next/link";
 import { AlertCircle, CalendarX } from "lucide-react";
-import {
-  DUMMY_EVENTS,
-  DUMMY_RSVPS,
-  CURRENT_USER,
-  getDummyRsvp,
-  getDummyPayment,
-} from "@/lib/dummy-data";
+import { getUpcomingEvents } from "@/lib/queries/events";
+import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/event-card";
 import { EmptyState } from "@/components/empty-state";
 
-export default function DashboardPage() {
-  // Use a fixed reference date matching the current date in the project (2026-03-16).
-  // In production this would be replaced with `new Date()` at runtime.
-  const now = new Date("2026-03-16T00:00:00Z");
+/**
+ * Inner async component that fetches all uncached data.
+ * Must be wrapped in <Suspense> by the parent page component.
+ */
+async function DashboardContent() {
+  // Fetch the current authenticated user's profile for the greeting
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // Filter to only published events that start in the future,
-  // sort by start date ascending, and take the nearest 5.
-  const upcomingEvents = DUMMY_EVENTS.filter(
-    (e) => e.status === "published" && new Date(e.start_at) > now,
-  )
-    .sort(
-      (a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime(),
-    )
-    .slice(0, 5);
+  // Fetch the display_name from the profiles table for a personalised greeting
+  let displayName = "회원";
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("display_name")
+      .eq("id", user.id)
+      .single();
 
-  // Count how many attendees (going RSVPs) an event has.
-  const getRsvpCount = (eventId: string) =>
-    DUMMY_RSVPS.filter((r) => r.event_id === eventId && r.status === "going")
-      .length;
+    if (profile?.display_name) {
+      displayName = profile.display_name;
+    }
+  }
 
-  // Count upcoming events where the current user is going but has not confirmed payment.
-  // "Unpaid" means: no payment record, OR payment is pending/rejected.
-  const unpaidCount = upcomingEvents.filter((event) => {
-    const rsvp = getDummyRsvp(event.id, CURRENT_USER.id);
-    // Skip events where user is not attending
-    if (rsvp?.status !== "going") return false;
-    const payment = getDummyPayment(event.id, CURRENT_USER.id);
-    return (
-      !payment || payment.status === "pending" || payment.status === "rejected"
-    );
-  }).length;
+  // Fetch upcoming published events from Supabase (already filtered + sorted by the query)
+  const allUpcomingEvents = await getUpcomingEvents();
+
+  // Show only the nearest 5 upcoming events on the dashboard
+  const upcomingEvents = allUpcomingEvents.slice(0, 5);
+
+  // Payment/RSVP counts will be wired up in Task 013/014.
+  // For now, the unpaid banner is hidden (unpaidCount = 0).
+  const unpaidCount = 0;
 
   return (
     <div className="space-y-4 p-4">
       {/* Greeting header — shows the current user's display name */}
-      <h1 className="text-2xl font-bold">
-        안녕하세요, {CURRENT_USER.display_name}님!
-      </h1>
+      <h1 className="text-2xl font-bold">안녕하세요, {displayName}님!</h1>
 
       {/* Unpaid alert banner — only rendered when there is at least one unpaid event */}
       {unpaidCount > 0 && (
@@ -82,8 +84,9 @@ export default function DashboardPage() {
               <EventCard
                 key={event.id}
                 event={event}
-                userRsvpStatus={getDummyRsvp(event.id, CURRENT_USER.id)?.status}
-                rsvpCount={getRsvpCount(event.id)}
+                // userRsvpStatus and rsvpCount will be wired in Task 013
+                userRsvpStatus={undefined}
+                rsvpCount={0}
               />
             ))}
           </div>
@@ -92,5 +95,27 @@ export default function DashboardPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Dashboard page shell.
+ * Wraps the data-fetching content in Suspense as required by cacheComponents mode.
+ */
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4 p-4">
+          <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+          <div className="space-y-3">
+            <div className="h-24 animate-pulse rounded-lg bg-muted" />
+            <div className="h-24 animate-pulse rounded-lg bg-muted" />
+          </div>
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }

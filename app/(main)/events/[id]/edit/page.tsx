@@ -1,26 +1,32 @@
-/**
- * Edit event page — form to modify an existing event.
- *
- * Phase 2: pre-populates form with dummy data. Phase 3: will call updateEvent server action.
- * Next.js 16: params must be awaited as Promise.
- */
+// Edit event page — Server Component wrapper.
+// Wraps data-fetching in Suspense as required by cacheComponents mode.
+
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import { EventForm } from "@/components/event-form";
-import { DUMMY_EVENTS } from "@/lib/dummy-data";
+import { getEventById } from "@/lib/queries/events";
+import type { EventFormData } from "@/lib/validations/event";
 
-export default async function EditEventPage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ id: string }>;
-}) {
+}
+
+/**
+ * Inner async component that resolves params and fetches the event.
+ * Must be wrapped in <Suspense> by the parent page component.
+ */
+async function EditEventContent({ params }: PageProps) {
+  // Await params inside the Suspense boundary to satisfy cacheComponents mode
   const { id } = await params;
-  const event = DUMMY_EVENTS.find((e) => e.id === id);
+
+  // Fetch the event from Supabase; null is returned if not found or RLS blocks access
+  const { event } = await getEventById(id);
   if (!event) notFound();
 
-  // Convert null fields from Event type to undefined for EventFormData compatibility.
-  // Event DB type uses null for optional fields; EventFormData uses undefined (Zod optional).
-  const formDefaults = {
+  // Convert null fields from the DB Event type to undefined for EventFormData compatibility.
+  // The DB schema uses null for optional fields; Zod's .optional() expects undefined, not null.
+  const formDefaults: Partial<EventFormData> = {
     ...event,
     description: event.description ?? undefined,
     end_at: event.end_at ?? undefined,
@@ -36,5 +42,24 @@ export default async function EditEventPage({
         <EventForm mode="edit" defaultValues={formDefaults} eventId={id} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Edit event page shell.
+ * Wraps the data-fetching content in Suspense.
+ */
+export default function EditEventPage({ params }: PageProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4 p-4">
+          <div className="h-8 w-48 animate-pulse rounded bg-muted" />
+          <div className="h-96 animate-pulse rounded-lg bg-muted" />
+        </div>
+      }
+    >
+      <EditEventContent params={params} />
+    </Suspense>
   );
 }

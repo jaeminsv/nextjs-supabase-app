@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { PaymentStatusBadge } from "@/components/payment-status-badge";
 import { RsvpStatusBadge } from "@/components/rsvp-status-badge";
 import { EmptyState } from "@/components/empty-state";
-import { CURRENT_USER, ALL_PROFILES } from "@/lib/dummy-data";
 import type { Event } from "@/lib/types/event";
 import type { Rsvp } from "@/lib/types/rsvp";
 import type { Payment } from "@/lib/types/payment";
@@ -43,9 +42,9 @@ export function ManageEventClient({
   // Controls which payment-status filter tab is active
   const [activeTab, setActiveTab] = useState<TabValue>("all");
 
-  // Phase 2: CURRENT_USER is always 'member', so organizer section never renders.
-  // Phase 3 TODO: also show for event organizers (not just global admins).
-  const isAdmin = CURRENT_USER.role === "admin";
+  // TODO (Task 015): derive isAdmin from the authenticated user's profile role.
+  // Organizer management section is hidden until role check is wired up.
+  const isAdmin = false;
 
   // ─── Stats calculation ─────────────────────────────────────────────────────
 
@@ -172,35 +171,13 @@ export function ManageEventClient({
       </div>
 
       {/* ─── Organizer Management Section (admin only) ────────────────────── */}
-      {/* Phase 2: CURRENT_USER.role === 'member', so this section is never shown */}
-      {/* Phase 3 TODO: replace with real event_organizers table queries */}
+      {/* TODO (Task 015): implement organizer add/remove with real profiles query */}
       {isAdmin && (
         <section className="m-4 space-y-3 rounded-lg border p-4">
           <h2 className="text-base font-semibold">주최자 관리</h2>
-
-          {/* Show the event creator as the default organizer */}
           <div className="text-sm text-muted-foreground">
             주최자 ID: {event.created_by}
           </div>
-
-          {/* List all non-pending profiles as organizer candidates */}
-          {ALL_PROFILES.filter((p) => p.role !== "pending").map((profile) => (
-            <div key={profile.id} className="flex items-center justify-between">
-              <span className="text-sm">
-                {profile.display_name}{" "}
-                <span className="text-muted-foreground">({profile.role})</span>
-              </span>
-              {/* Phase 3 TODO: call addOrganizer / removeOrganizer server actions */}
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => console.log("add-organizer", profile.id)}
-              >
-                추가
-              </Button>
-            </div>
-          ))}
         </section>
       )}
     </div>

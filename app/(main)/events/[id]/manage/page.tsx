@@ -1,20 +1,14 @@
 /**
  * Attendee & fee management page — organizer/admin dashboard for an event.
- *
- * Fetches RSVPs (going only) and payments for the event, builds AttendeeRow
- * array with pre-calculated fees, then passes to ManageEventClient.
- *
- * Phase 2 (Task 008): Uses dummy data. Phase 3 will replace with Supabase queries.
+ * Wraps data-fetching in Suspense as required by cacheComponents mode.
  *
  * Note: Next.js 16 requires params to be awaited as a Promise.
  */
+
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import {
-  DUMMY_EVENTS,
-  DUMMY_RSVPS,
-  DUMMY_PAYMENTS,
-  ALL_PROFILES,
-} from "@/lib/dummy-data";
+import { createClient } from "@/lib/supabase/server";
+import { getEventById } from "@/lib/queries/events";
 import { PageHeader } from "@/components/page-header";
 import { ManageEventClient } from "@/components/manage-event-client";
 import type { Rsvp } from "@/lib/types/rsvp";
@@ -30,31 +24,68 @@ export interface AttendeeRow {
   totalFee: number; // fee_amount + adult_guests*adult_guest_fee + child_guests*child_guest_fee
 }
 
-export default async function ManageEventPage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ id: string }>;
-}) {
+}
+
+/**
+ * Inner async component that resolves params and fetches all uncached data.
+ * Must be wrapped in <Suspense> by the parent page component.
+ */
+async function ManageEventContent({ params }: PageProps) {
+  // Await params inside the Suspense boundary to satisfy cacheComponents mode
   const { id } = await params;
 
-  const event = DUMMY_EVENTS.find((e) => e.id === id);
+  // Fetch the event — returns 404 if not found or RLS blocks access
+  const { event } = await getEventById(id);
   if (!event) notFound();
 
-  // Only 'going' RSVPs are included in the attendee list
-  const goingRsvps = DUMMY_RSVPS.filter(
-    (r) => r.event_id === id && r.status === "going",
-  );
-  const eventPayments = DUMMY_PAYMENTS.filter((p) => p.event_id === id);
+  const supabase = await createClient();
 
-  // Build AttendeeRow array; skip rows where profile lookup fails
-  const attendees: AttendeeRow[] = goingRsvps.flatMap((rsvp) => {
-    const profile = ALL_PROFILES.find((p) => p.id === rsvp.user_id);
+  // Fetch only 'going' RSVPs with joined profile data for display
+  const { data: goingRsvps } = await supabase
+    .from("rsvps")
+    .select("*, profile:profiles(id, display_name, full_name, email, role)")
+    .eq("event_id", id)
+    .eq("status", "going");
+
+  // Fetch all payment records for this event
+  const { data: eventPayments } = await supabase
+    .from("payments")
+    .select("*")
+    .eq("event_id", id);
+
+  const rsvps = goingRsvps ?? [];
+  const payments = eventPayments ?? [];
+
+  // Build AttendeeRow array with pre-calculated fees per attendee
+  const attendees: AttendeeRow[] = rsvps.flatMap((rsvpRow) => {
+    // The joined profile data comes back nested under "profile"
+    const profile = rsvpRow.profile as unknown as Profile;
     if (!profile) return [];
-    const payment = eventPayments.find((p) => p.user_id === rsvp.user_id);
+
+    // Build a plain Rsvp object without the nested profile field
+    const rsvp: Rsvp = {
+      id: rsvpRow.id,
+      event_id: rsvpRow.event_id,
+      user_id: rsvpRow.user_id,
+      status: rsvpRow.status,
+      adult_guests: rsvpRow.adult_guests,
+      child_guests: rsvpRow.child_guests,
+      created_at: rsvpRow.created_at,
+      updated_at: rsvpRow.updated_at,
+    };
+
+    const payment = payments.find((p) => p.user_id === rsvpRow.user_id) as
+      | Payment
+      | undefined;
+
+    // Total fee = base member fee + per-adult-guest + per-child-guest
     const totalFee =
       event.fee_amount +
-      rsvp.adult_guests * event.adult_guest_fee +
-      rsvp.child_guests * event.child_guest_fee;
+      rsvpRow.adult_guests * event.adult_guest_fee +
+      rsvpRow.child_guests * event.child_guest_fee;
+
     return [{ profile, rsvp, payment, totalFee }];
   });
 
@@ -63,5 +94,25 @@ export default async function ManageEventPage({
       <PageHeader title="참석자 & 회비 관리" backHref={`/events/${id}`} />
       <ManageEventClient event={event} attendees={attendees} />
     </div>
+  );
+}
+
+/**
+ * Manage event page shell.
+ * Wraps the data-fetching content in Suspense.
+ */
+export default function ManageEventPage({ params }: PageProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-3 p-4">
+          <div className="h-6 w-48 animate-pulse rounded bg-muted" />
+          <div className="h-16 animate-pulse rounded-lg bg-muted" />
+          <div className="h-24 animate-pulse rounded-lg bg-muted" />
+        </div>
+      }
+    >
+      <ManageEventContent params={params} />
+    </Suspense>
   );
 }
