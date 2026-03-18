@@ -14,72 +14,302 @@ export type Database = {
   }
   public: {
     Tables: {
-      instruments: {
+      event_organizers: {
         Row: {
-          id: number
-          name: string
+          event_id: string
+          user_id: string
         }
         Insert: {
-          id?: never
-          name: string
+          event_id: string
+          user_id: string
         }
         Update: {
-          id?: never
-          name?: string
+          event_id?: string
+          user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "event_organizers_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_organizers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      notes: {
+      events: {
         Row: {
-          id: number
-          title: string | null
-        }
-        Insert: {
-          id?: number
-          title?: string | null
-        }
-        Update: {
-          id?: number
-          title?: string | null
-        }
-        Relationships: []
-      }
-      profiles: {
-        Row: {
-          avatar_url: string | null
-          bio: string | null
+          adult_guest_fee: number
+          child_guest_fee: number
           created_at: string
-          display_name: string | null
+          created_by: string
+          description: string | null
+          end_at: string | null
+          fee_amount: number
           id: string
+          location: string
+          max_capacity: number | null
+          payment_instructions: string | null
+          rsvp_deadline: string | null
+          start_at: string
+          status: Database["public"]["Enums"]["event_status"]
+          title: string
           updated_at: string
         }
         Insert: {
-          avatar_url?: string | null
-          bio?: string | null
+          adult_guest_fee?: number
+          child_guest_fee?: number
           created_at?: string
-          display_name?: string | null
-          id: string
+          created_by: string
+          description?: string | null
+          end_at?: string | null
+          fee_amount?: number
+          id?: string
+          location: string
+          max_capacity?: number | null
+          payment_instructions?: string | null
+          rsvp_deadline?: string | null
+          start_at: string
+          status?: Database["public"]["Enums"]["event_status"]
+          title: string
           updated_at?: string
         }
         Update: {
-          avatar_url?: string | null
-          bio?: string | null
+          adult_guest_fee?: number
+          child_guest_fee?: number
           created_at?: string
-          display_name?: string | null
+          created_by?: string
+          description?: string | null
+          end_at?: string | null
+          fee_amount?: number
           id?: string
+          location?: string
+          max_capacity?: number | null
+          payment_instructions?: string | null
+          rsvp_deadline?: string | null
+          start_at?: string
+          status?: Database["public"]["Enums"]["event_status"]
+          title?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          event_id: string
+          id: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note: string | null
+          rsvp_id: string
+          status: Database["public"]["Enums"]["payment_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          method: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          rsvp_id: string
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          method?: Database["public"]["Enums"]["payment_method"]
+          note?: string | null
+          rsvp_id?: string
+          status?: Database["public"]["Enums"]["payment_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_rsvp_id_fkey"
+            columns: ["rsvp_id"]
+            isOneToOne: false
+            referencedRelation: "rsvps"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          company: string | null
+          created_at: string
+          display_name: string
+          email: string
+          full_name: string
+          id: string
+          is_integrated_ms_phd: boolean
+          job_title: string | null
+          kaist_bs_major: string | null
+          kaist_bs_year: number | null
+          kaist_ms_major: string | null
+          kaist_ms_year: number | null
+          kaist_phd_major: string | null
+          kaist_phd_year: number | null
+          phone: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+          venmo_handle: string | null
+          zelle_handle: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          display_name?: string
+          email?: string
+          full_name?: string
+          id: string
+          is_integrated_ms_phd?: boolean
+          job_title?: string | null
+          kaist_bs_major?: string | null
+          kaist_bs_year?: number | null
+          kaist_ms_major?: string | null
+          kaist_ms_year?: number | null
+          kaist_phd_major?: string | null
+          kaist_phd_year?: number | null
+          phone?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          venmo_handle?: string | null
+          zelle_handle?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          display_name?: string
+          email?: string
+          full_name?: string
+          id?: string
+          is_integrated_ms_phd?: boolean
+          job_title?: string | null
+          kaist_bs_major?: string | null
+          kaist_bs_year?: number | null
+          kaist_ms_major?: string | null
+          kaist_ms_year?: number | null
+          kaist_phd_major?: string | null
+          kaist_phd_year?: number | null
+          phone?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          venmo_handle?: string | null
+          zelle_handle?: string | null
+        }
         Relationships: []
+      }
+      rsvps: {
+        Row: {
+          adult_guests: number
+          child_guests: number
+          created_at: string
+          event_id: string
+          id: string
+          status: Database["public"]["Enums"]["rsvp_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          adult_guests?: number
+          child_guests?: number
+          created_at?: string
+          event_id: string
+          id?: string
+          status: Database["public"]["Enums"]["rsvp_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          adult_guests?: number
+          child_guests?: number
+          created_at?: string
+          event_id?: string
+          id?: string
+          status?: Database["public"]["Enums"]["rsvp_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rsvps_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rsvps_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_my_role: { Args: never; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      event_status: "draft" | "published" | "cancelled" | "completed"
+      payment_method: "venmo" | "zelle" | "paypal" | "other"
+      payment_status: "pending" | "confirmed" | "rejected"
+      rsvp_status: "going" | "maybe" | "not_going"
+      user_role: "pending" | "member" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -206,6 +436,12 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      event_status: ["draft", "published", "cancelled", "completed"],
+      payment_method: ["venmo", "zelle", "paypal", "other"],
+      payment_status: ["pending", "confirmed", "rejected"],
+      rsvp_status: ["going", "maybe", "not_going"],
+      user_role: ["pending", "member", "admin"],
+    },
   },
 } as const
