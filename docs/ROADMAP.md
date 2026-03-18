@@ -77,7 +77,7 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
     - ✅ `profile.ts`: 프로필 수정 검증
   - 참고: DB 마이그레이션 SQL 설계는 Phase 2 UI/UX 완성 후 Phase 3 (Task 010)에서 진행
 
-### Phase 2: UI/UX 구현 (더미 데이터 활용)
+### Phase 2: UI/UX 구현 (더미 데이터 활용) ✅
 
 모든 페이지 UI를 하드코딩된 더미 데이터로 구현합니다. 이 단계에서는 API 호출이나 데이터베이스 연동을 하지 않습니다.
 
@@ -85,11 +85,11 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
 
 > **📌 임시 공개 라우트**: Phase 2 UI 시각 확인을 위해 `/onboarding`과 `/pending`이 `proxy.ts`에서 임시로 인증 없이 접근 가능하도록 설정되어 있습니다 (`isPhase2PreviewRoute`). **Phase 3 시작 전 반드시 제거해야 합니다** (아래 Task DEV 참고).
 
-- **Task DEV: /dev 쇼케이스 페이지 제거** ⚠️ Phase 3 시작 전 필수 삭제
-  - `app/dev/` 디렉토리 전체 삭제
-  - `lib/supabase/proxy.ts`에서 `isDevRoute` 변수 및 관련 주석 제거 (isPublicRoute에서도 제거)
-  - `lib/supabase/proxy.ts`에서 `isPhase2PreviewRoute` 변수 및 관련 주석 제거 (isPublicRoute에서도 제거)
-  - ⚠️ **`lib/dummy-data/profiles.ts` 117번 줄 복원 필수**: `CURRENT_USER = DUMMY_ADMIN` → `CURRENT_USER = DUMMY_MEMBERS[0]` (admin UI 미리보기를 위해 임시 변경됨)
+- **Task DEV: /dev 쇼케이스 페이지 제거** ✅ - 완료
+  - ✅ `app/dev/` 디렉토리 전체 삭제
+  - ✅ `lib/supabase/proxy.ts`에서 `isDevRoute` 변수 및 관련 주석 제거 (isPublicRoute에서도 제거)
+  - ✅ `lib/supabase/proxy.ts`에서 `isPhase2PreviewRoute` 변수 및 관련 주석 제거 (isPublicRoute에서도 제거)
+  - ✅ **`lib/dummy-data/profiles.ts` 117번 줄 복원**: `CURRENT_USER = DUMMY_ADMIN` → `CURRENT_USER = DUMMY_MEMBERS[0]`
 
 - **Task 003: 공통 컴포넌트 라이브러리** ✅ - 완료
   - ✅ shadcn/ui 기반 재사용 가능한 UI 컴포넌트 구현
@@ -185,23 +185,23 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
 
 데이터베이스 마이그레이션 적용, API 레이어 구축, 비즈니스 로직 구현, 더미 데이터를 실제 Supabase 쿼리로 교체합니다.
 
-- **Task 010: 데이터베이스 마이그레이션 및 Supabase 설정** - 우선순위
-  - Supabase 데이터베이스 마이그레이션 적용
-    - Enum 타입 생성 (user_role, event_status, rsvp_status, payment_status, payment_method)
-    - profiles 테이블 생성 + auth.users 삽입 시 자동 생성 트리거
-    - events 테이블 생성 (적절한 기본값 및 제약 조건 포함)
-    - event_organizers 테이블 생성 (복합 기본 키)
-    - rsvps 테이블 생성 (event_id + user_id 고유 제약 조건)
-    - payments 테이블 생성
-    - 쿼리 성능을 위한 필요 인덱스 생성
-  - 모든 테이블에 대한 Row Level Security (RLS) 정책 구현
-    - profiles: 본인 읽기, member/admin 전체 읽기, 본인 삽입, 본인 수정, 관리자 역할 변경
-    - events: 게시됨 전체 읽기, 초안은 생성자/주최자/관리자만, 생성자/주최자/관리자 수정
-    - event_organizers: 관리자만 삽입/삭제, 주최자/생성자/관리자 읽기
-    - rsvps: 본인 CRUD (마감일 제한), 주최자/관리자 이벤트별 전체 읽기
-    - payments: 본인 삽입 (going RSVP 필요), 주최자/관리자 상태 변경, 주최자/관리자 이벤트별 전체 읽기
-  - Supabase 스키마에서 TypeScript 타입 자동 생성
-  - Playwright MCP 테스트: 테이블 생성 및 RLS 정책 검증
+- **Task 010: 데이터베이스 마이그레이션 및 Supabase 설정** ✅ - 완료
+  - ✅ Supabase 데이터베이스 마이그레이션 적용
+    - ✅ Enum 타입 생성 (user_role, event_status, rsvp_status, payment_status, payment_method)
+    - ✅ profiles 테이블 생성 + auth.users 삽입 시 자동 생성 트리거
+    - ✅ events 테이블 생성 (적절한 기본값 및 제약 조건 포함)
+    - ✅ event_organizers 테이블 생성 (복합 기본 키)
+    - ✅ rsvps 테이블 생성 (event_id + user_id 고유 제약 조건)
+    - ✅ payments 테이블 생성
+    - ✅ 쿼리 성능을 위한 필요 인덱스 생성
+  - ✅ 모든 테이블에 대한 Row Level Security (RLS) 정책 구현
+    - ✅ profiles: 본인 읽기, member/admin 전체 읽기, 본인 삽입, 본인 수정, 관리자 역할 변경
+    - ✅ events: 게시됨 전체 읽기, 초안은 생성자/주최자/관리자만, 생성자/주최자/관리자 수정
+    - ✅ event_organizers: 관리자만 삽입/삭제, 주최자/생성자/관리자 읽기
+    - ✅ rsvps: 본인 CRUD (마감일 제한), 주최자/관리자 이벤트별 전체 읽기
+    - ✅ payments: 본인 삽입 (going RSVP 필요), 주최자/관리자 상태 변경, 주최자/관리자 이벤트별 전체 읽기
+  - ✅ Supabase 스키마에서 TypeScript 타입 자동 생성
+  - ✅ Playwright MCP 테스트: 테이블 생성 및 RLS 정책 검증 (CLI 기반 대체)
 
 - **Task 011: 인증 플로우 및 역할 기반 라우팅**
   - Google OAuth 이후 첫 로그인 감지 구현
