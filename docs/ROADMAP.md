@@ -203,20 +203,20 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
   - ✅ Supabase 스키마에서 TypeScript 타입 자동 생성
   - ✅ Playwright MCP 테스트: 테이블 생성 및 RLS 정책 검증 (CLI 기반 대체)
 
-- **Task 011: 인증 플로우 및 역할 기반 라우팅**
-  - Google OAuth 이후 첫 로그인 감지 구현
-    - OAuth 콜백 후 profiles 테이블에 프로필 존재 여부 확인
-    - 프로필 미존재 시 `/onboarding`으로 리다이렉트
-    - 역할이 pending이면 `/pending`으로 리다이렉트
-    - 역할이 member 또는 admin이면 `/dashboard`로 리다이렉트
-  - 온보딩 위저드를 Supabase에 연결
-    - 폼 제출 시 role=pending으로 새 프로필 삽입
-    - 성공 시 승인 대기 페이지로 이동
-  - proxy.ts를 포괄적인 역할 기반 라우트 보호로 업데이트
-    - pending 사용자: `/pending`과 `/auth/*`만 허용, 나머지는 `/pending`으로 리다이렉트
-    - 미인증 사용자: `/auth/*`만 허용, `/auth/login`으로 리다이렉트
-    - 인증된 member/admin: `/onboarding`과 `/pending` 차단, `/dashboard`로 리다이렉트
-  - Playwright MCP 테스트: 로그인 플로우, 첫 로그인 감지, 역할 기반 리다이렉트 검증
+- **Task 011: 인증 플로우 및 역할 기반 라우팅** ✅ - 완료
+  - ✅ Google OAuth 이후 첫 로그인 감지 구현
+    - ✅ OAuth 콜백 후 profiles 테이블에 프로필 존재 여부 확인
+    - ✅ 프로필 미존재 시 `/onboarding`으로 리다이렉트
+    - ✅ 역할이 pending이면 `/pending`으로 리다이렉트
+    - ✅ 역할이 member 또는 admin이면 `/dashboard`로 리다이렉트
+  - ✅ 온보딩 위저드를 Supabase에 연결
+    - ✅ 폼 제출 시 role=pending으로 새 프로필 삽입
+    - ✅ 성공 시 승인 대기 페이지로 이동
+  - ✅ proxy.ts를 포괄적인 역할 기반 라우트 보호로 업데이트
+    - ✅ pending 사용자: `/pending`과 `/auth/*`만 허용, 나머지는 `/pending`으로 리다이렉트
+    - ✅ 미인증 사용자: `/auth/*`만 허용, `/auth/login`으로 리다이렉트
+    - ✅ 인증된 member/admin: `/onboarding`과 `/pending` 차단, `/dashboard`로 리다이렉트
+  - ✅ Playwright MCP 테스트: 로그인 플로우, 첫 로그인 감지, 역할 기반 리다이렉트 검증
 
 - **Task 012: 이벤트 CRUD API 및 데이터 연동**
   - 이벤트 작업을 위한 Server Actions 구현
