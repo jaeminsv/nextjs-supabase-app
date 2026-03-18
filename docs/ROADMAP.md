@@ -218,21 +218,21 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
     - ✅ 인증된 member/admin: `/onboarding`과 `/pending` 차단, `/dashboard`로 리다이렉트
   - ✅ Playwright MCP 테스트: 로그인 플로우, 첫 로그인 감지, 역할 기반 리다이렉트 검증
 
-- **Task 012: 이벤트 CRUD API 및 데이터 연동**
-  - 이벤트 작업을 위한 Server Actions 구현
-    - `createEvent`: 초안 이벤트 생성, 생성자를 주최자로 추가
-    - `updateEvent`: 이벤트 상세 수정 (생성자/주최자/관리자만)
-    - `publishEvent`: 상태 변경 draft → published
-    - `cancelEvent`: 상태를 cancelled로 변경
-    - `completeEvent`: 상태를 completed로 변경
-  - Supabase 쿼리를 통한 이벤트 데이터 조회 구현
-    - `getUpcomingEvents`: start_at > 현재 시간인 게시된 이벤트, 날짜순 정렬
-    - `getPastEvents`: 완료/취소된 이벤트 또는 start_at < 현재 시간
-    - `getEventById`: 주최자 정보가 포함된 단일 이벤트
-    - `getMyRsvpForEvent`: 특정 이벤트에 대한 현재 사용자의 RSVP
-  - 대시보드, 이벤트 목록, 이벤트 상세 페이지의 더미 데이터를 실제 데이터로 교체
-  - 이벤트 생성/수정 폼을 Server Actions에 연결
-  - Playwright MCP 테스트: 이벤트 CRUD 작업, 상태 전이, 권한 검사
+- **Task 012: 이벤트 CRUD API 및 데이터 연동** ✅ - 완료
+  - ✅ 이벤트 작업을 위한 Server Actions 구현
+    - ✅ `createEvent`: 초안 이벤트 생성, 생성자를 주최자로 추가
+    - ✅ `updateEvent`: 이벤트 상세 수정 (생성자/주최자/관리자만)
+    - ✅ `publishEvent`: 상태 변경 draft → published
+    - ✅ `cancelEvent`: 상태를 cancelled로 변경
+    - ✅ `completeEvent`: 상태를 completed로 변경
+  - ✅ Supabase 쿼리를 통한 이벤트 데이터 조회 구현
+    - ✅ `getUpcomingEvents`: start_at > 현재 시간인 게시된 이벤트, 날짜순 정렬
+    - ✅ `getPastEvents`: 완료/취소된 이벤트 또는 start_at < 현재 시간
+    - ✅ `getEventById`: 주최자 정보가 포함된 단일 이벤트
+    - ✅ `getMyRsvpForEvent`: 특정 이벤트에 대한 현재 사용자의 RSVP
+  - ✅ 대시보드, 이벤트 목록, 이벤트 상세 페이지의 더미 데이터를 실제 데이터로 교체
+  - ✅ 이벤트 생성/수정 폼을 Server Actions에 연결
+  - ✅ Playwright MCP 테스트: 이벤트 CRUD 작업, 상태 전이, 권한 검사
 
 - **Task 013: RSVP 시스템 구현**
   - RSVP 작업을 위한 Server Actions 구현

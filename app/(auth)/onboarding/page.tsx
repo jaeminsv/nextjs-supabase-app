@@ -325,7 +325,7 @@ export default function OnboardingPage() {
                   <>
                     {/* Bachelor's graduation year */}
                     <div className="grid gap-2">
-                      <Label htmlFor="kaist_bs_year">학사 졸업 연도</Label>
+                      <Label htmlFor="kaist_bs_year">학사 입학 연도</Label>
                       <Input
                         id="kaist_bs_year"
                         type="number"
@@ -368,7 +368,7 @@ export default function OnboardingPage() {
                     {!isIntegratedMsPhd && (
                       <>
                         <div className="grid gap-2">
-                          <Label htmlFor="kaist_ms_year">석사 졸업 연도</Label>
+                          <Label htmlFor="kaist_ms_year">석사 입학 연도</Label>
                           <Input
                             id="kaist_ms_year"
                             type="number"
@@ -390,7 +390,7 @@ export default function OnboardingPage() {
 
                     {/* PhD graduation year */}
                     <div className="grid gap-2">
-                      <Label htmlFor="kaist_phd_year">박사 졸업 연도</Label>
+                      <Label htmlFor="kaist_phd_year">박사 입학 연도</Label>
                       <Input
                         id="kaist_phd_year"
                         type="number"
