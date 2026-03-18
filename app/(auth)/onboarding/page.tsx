@@ -14,11 +14,12 @@
  * NaN issue caused by HTML number inputs + zodResolver. They are converted to
  * numbers only at submit time.
  *
- * Phase 2 (Task 004): Dummy UI — form data is only logged to the console.
- * Phase 3 (Task 011): Will create a Supabase profile with role='pending'.
+ * Phase 3 (Task 011): Calls createProfile Server Action to upsert the profile
+ * with role='pending', then redirects to /pending on success.
  */
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -35,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { onboardingSchema } from "@/lib/validations/onboarding";
 import type { OnboardingFormData } from "@/lib/validations/onboarding";
+import { createProfile } from "@/actions/profile";
 
 /**
  * Internal form schema that mirrors onboardingSchema but uses strings for year
@@ -103,6 +105,15 @@ export default function OnboardingPage() {
   // Track which step the user is currently on (1-indexed)
   const [currentStep, setCurrentStep] = useState(1);
 
+  // Router for programmatic navigation after form submission
+  const router = useRouter();
+
+  // isPending is true while the Server Action is in flight
+  const [isPending, startTransition] = useTransition();
+
+  // Holds a submission error message to display below the form
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   // Single useForm instance for the entire multi-step form using the internal
   // string-based schema. Year values are converted to numbers at submit time.
   const {
@@ -158,19 +169,23 @@ export default function OnboardingPage() {
    * Final form submission handler.
    *
    * Converts internal string-based year values to numbers and validates the
-   * result against the canonical onboardingSchema before logging/submitting.
+   * result against the canonical onboardingSchema, then calls the createProfile
+   * Server Action to upsert the profile with role='pending'.
    *
-   * Phase 2: logs data to console only.
-   * Phase 3 (Task 011): will call a Server Action to create the Supabase profile.
+   * On success → navigate to /pending (awaiting admin approval).
+   * On failure → display the error message below the submit button.
    */
   const onSubmit = (data: FormValues) => {
+    // Clear any previous submission error before re-submitting
+    setSubmitError(null);
+
     // Transform string year fields to numbers (or undefined if empty)
     const transformed: OnboardingFormData = {
       ...data,
       kaist_bs_year: parseYear(data.kaist_bs_year),
       kaist_ms_year: parseYear(data.kaist_ms_year),
       kaist_phd_year: parseYear(data.kaist_phd_year),
-      // Ensure is_integrated_ms_phd is always a boolean (default(false) handles this)
+      // Ensure is_integrated_ms_phd is always a boolean
       is_integrated_ms_phd: data.is_integrated_ms_phd ?? false,
     };
 
@@ -178,11 +193,24 @@ export default function OnboardingPage() {
     const result = onboardingSchema.safeParse(transformed);
     if (!result.success) {
       console.error("Onboarding validation error:", result.error);
+      setSubmitError("입력 데이터에 문제가 있습니다. 다시 확인해주세요.");
       return;
     }
 
-    console.log("Onboarding submitted (Phase 2 dummy):", result.data);
-    // TODO Phase 3 (Task 011): create Supabase profile with role='pending'
+    // Wrap the async Server Action call in startTransition so isPending
+    // reflects the loading state without blocking React rendering
+    startTransition(async () => {
+      const response = await createProfile(result.data);
+
+      if (response.error) {
+        // Display the error returned by the Server Action
+        setSubmitError(response.error);
+        return;
+      }
+
+      // Profile created successfully — redirect to pending approval page
+      router.push("/pending");
+    });
   };
 
   // Calculate progress bar width based on current step
@@ -453,13 +481,22 @@ export default function OnboardingPage() {
                     </Button>
                   )}
 
-                  {/* Submit button — shown only on Step 3 */}
+                  {/* Submit button — shown only on Step 3, disabled while submitting */}
                   {currentStep === TOTAL_STEPS && (
-                    <Button type="submit" className="flex-1">
-                      제출
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={isPending}
+                    >
+                      {isPending ? "제출 중..." : "제출"}
                     </Button>
                   )}
                 </div>
+
+                {/* Submission error message — shown below the navigation buttons */}
+                {submitError && (
+                  <p className="mt-2 text-sm text-destructive">{submitError}</p>
+                )}
               </div>
             </form>
           </CardContent>
