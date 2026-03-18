@@ -113,10 +113,8 @@ export const DUMMY_PENDING: Profile = {
   updated_at: "2026-03-05T00:00:00Z",
 };
 
-// Simulates the currently logged-in user.
-// TEMPORARY: switched to DUMMY_ADMIN to preview admin UI (tab bar, manage buttons, etc.)
-// TODO: revert to DUMMY_MEMBERS[0] before Phase 3 (or before Task DEV cleanup)
-export const CURRENT_USER = DUMMY_ADMIN;
+// Simulates the currently logged-in user. Uses the first member as the default.
+export const CURRENT_USER = DUMMY_MEMBERS[0];
 
 // All profiles combined for convenience
 export const ALL_PROFILES: Profile[] = [
