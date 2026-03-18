@@ -11,6 +11,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Calendar, Clock, Link2, MapPin, Minus, Plus } from "lucide-react";
+import { submitRsvp } from "@/actions/rsvp";
 import { PageHeader } from "@/components/page-header";
 import { EventStatusBadge } from "@/components/event-status-badge";
 import { RsvpStatusBadge } from "@/components/rsvp-status-badge";
@@ -33,12 +34,18 @@ interface EventDetailClientProps {
   initialRsvp?: Rsvp;
   // Current user's payment record for this event (undefined if not yet paid)
   initialPayment?: Payment;
+  // Whether the current user has the 'admin' role — unlocks management actions
+  isAdmin: boolean;
+  // Whether the current user is listed as an organizer for this specific event
+  isOrganizer: boolean;
 }
 
 export function EventDetailClient({
   event,
   initialRsvp,
   initialPayment,
+  isAdmin,
+  isOrganizer,
 }: EventDetailClientProps) {
   // RSVP state — initialized from existing RSVP if available
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus | undefined>(
@@ -58,6 +65,10 @@ export function EventDetailClient({
     useState<string>("venmo");
   // Tracks whether the share link was just copied to clipboard
   const [copied, setCopied] = useState(false);
+  // Tracks whether an RSVP save is in progress (disables the button to prevent double-submit)
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // Holds the error message returned by submitRsvp, if any (null when no error)
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
 
   // Format start date/time in Korean locale (e.g. "4월 15일 오후 03:00")
   const formattedStartDate = new Date(event.start_at).toLocaleDateString(
@@ -96,14 +107,38 @@ export function EventDetailClient({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  /**
+   * Submits the current RSVP selection to the server.
+   *
+   * Calls the submitRsvp Server Action with the current rsvpStatus, adultGuests,
+   * and childGuests values. Shows an error message if the action fails (e.g.,
+   * deadline passed or event at capacity).
+   */
+  const handleRsvpSave = async () => {
+    // Guard: do not submit if no status selected or already submitting
+    if (!rsvpStatus || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setRsvpError(null);
+
+    const result = await submitRsvp(event.id, {
+      status: rsvpStatus,
+      adult_guests: adultGuests,
+      child_guests: childGuests,
+    });
+
+    setIsSubmitting(false);
+
+    if (result.error) {
+      // Display the server-side error message to the user
+      setRsvpError(result.error);
+    }
+  };
+
   // Check if RSVP deadline has passed (if no deadline, RSVP is always open)
   const isDeadlinePassed = event.rsvp_deadline
     ? new Date() > new Date(event.rsvp_deadline)
     : false;
-
-  // TODO (Task 015): derive isAdmin from the authenticated user's profile role.
-  // Admin/organizer actions (edit, manage) are hidden until role check is wired up.
-  const isAdmin = false;
 
   // Calculate total fee based on current guest counts.
   // fee_amount = base member fee, adult_guest_fee = per adult guest,
@@ -169,8 +204,8 @@ export function EventDetailClient({
           {copied ? "복사됨!" : "이벤트 링크 복사"}
         </Button>
 
-        {/* Admin/organizer actions — hidden until role check is wired (Task 015) */}
-        {isAdmin && (
+        {/* Admin/organizer actions — visible to admins and event organizers */}
+        {(isAdmin || isOrganizer) && (
           <div className="flex gap-2">
             <Button asChild variant="outline" className="flex-1">
               <Link href={`/events/${event.id}/edit`}>이벤트 수정</Link>
@@ -281,20 +316,18 @@ export function EventDetailClient({
                 </div>
               )}
 
-              {/* Save RSVP button */}
-              {/* Phase 3 TODO: call submitRsvp server action instead of console.log */}
+              {/* Error message returned by submitRsvp (e.g. deadline passed, full capacity) */}
+              {rsvpError && (
+                <p className="text-sm text-destructive">{rsvpError}</p>
+              )}
+
+              {/* Save RSVP button — disabled while a submission is in progress */}
               <Button
                 className="w-full"
-                onClick={() =>
-                  console.log(
-                    "RSVP save:",
-                    rsvpStatus,
-                    adultGuests,
-                    childGuests,
-                  )
-                }
+                onClick={handleRsvpSave}
+                disabled={isSubmitting || !rsvpStatus}
               >
-                RSVP 저장
+                {isSubmitting ? "저장 중..." : "RSVP 저장"}
               </Button>
             </>
           )}

@@ -130,8 +130,9 @@ export async function getEventById(id: string): Promise<{
 /**
  * Fetches the currently authenticated user's RSVP for a given event.
  *
- * Used on the event detail page to pre-populate the RSVP form or show the
- * member's existing response.
+ * Uses getClaims() instead of getUser() to read the user ID directly from
+ * the local JWT cookie — this avoids a network round-trip to the Supabase
+ * Auth API and prevents rate-limit (429) errors during page renders.
  *
  * @param eventId - UUID of the event to check the RSVP for
  * @returns The Rsvp record if found, or null if the user hasn't RSVPed
@@ -140,12 +141,12 @@ export async function getMyRsvpForEvent(eventId: string): Promise<Rsvp | null> {
   try {
     const supabase = await createClient();
 
-    // Get the current user — returns null if not authenticated
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    // getClaims() reads the user ID from the JWT stored in the session cookie.
+    // This is a local operation — no Auth API call, no rate-limit risk.
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const userId = claimsData?.claims?.sub;
 
-    if (!user) {
+    if (!userId) {
       return null;
     }
 
@@ -155,7 +156,7 @@ export async function getMyRsvpForEvent(eventId: string): Promise<Rsvp | null> {
       .from("rsvps")
       .select("*")
       .eq("event_id", eventId)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .maybeSingle();
 
     if (error) {
@@ -167,5 +168,59 @@ export async function getMyRsvpForEvent(eventId: string): Promise<Rsvp | null> {
   } catch (err) {
     console.error("getMyRsvpForEvent unexpected error:", err);
     return null;
+  }
+}
+
+/**
+ * Fetches the current user's RSVPs for multiple events in a single query.
+ *
+ * This is more efficient than calling getMyRsvpForEvent() in a loop because
+ * it issues one database query to retrieve all relevant RSVP rows at once.
+ * Used on the dashboard to show RSVP status badges on EventCards.
+ *
+ * Uses getClaims() to read the user ID from the local JWT (no Auth API call).
+ *
+ * @param eventIds - Array of event UUIDs to check RSVPs for
+ * @returns A map of { [eventId]: Rsvp } for events where the user has RSVPed.
+ *          Returns an empty object if the user is not authenticated or on error.
+ */
+export async function getUserRsvpsForEvents(
+  eventIds: string[],
+): Promise<Record<string, Rsvp>> {
+  // Return early if no event IDs are provided — avoids an unnecessary DB call
+  if (eventIds.length === 0) return {};
+
+  try {
+    const supabase = await createClient();
+
+    // Read user ID from the JWT cookie (local, no network call)
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const userId = claimsData?.claims?.sub;
+
+    if (!userId) {
+      return {};
+    }
+
+    // Fetch all RSVPs for the given events belonging to the current user
+    const { data, error } = await supabase
+      .from("rsvps")
+      .select("*")
+      .eq("user_id", userId)
+      .in("event_id", eventIds);
+
+    if (error) {
+      console.error("getUserRsvpsForEvents error:", error);
+      return {};
+    }
+
+    // Convert the array into a map keyed by event_id for O(1) lookups in the UI.
+    // Example: { "uuid-event-1": { id: "...", status: "going", ... }, ... }
+    return (data as Rsvp[]).reduce<Record<string, Rsvp>>((acc, rsvp) => {
+      acc[rsvp.event_id] = rsvp;
+      return acc;
+    }, {});
+  } catch (err) {
+    console.error("getUserRsvpsForEvents unexpected error:", err);
+    return {};
   }
 }

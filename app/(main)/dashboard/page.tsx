@@ -9,7 +9,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { AlertCircle, CalendarX } from "lucide-react";
-import { getUpcomingEvents } from "@/lib/queries/events";
+import { getUpcomingEvents, getUserRsvpsForEvents } from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/event-card";
 import { EmptyState } from "@/components/empty-state";
@@ -19,19 +19,20 @@ import { EmptyState } from "@/components/empty-state";
  * Must be wrapped in <Suspense> by the parent page component.
  */
 async function DashboardContent() {
-  // Fetch the current authenticated user's profile for the greeting
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+
+  // Read the current user's ID from the JWT cookie without a network call.
+  // getClaims() is preferred over getUser() to avoid Auth API rate limits (429 errors).
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub ?? null;
 
   // Fetch the display_name from the profiles table for a personalised greeting
   let displayName = "회원";
-  if (user) {
+  if (userId) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("display_name")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
 
     if (profile?.display_name) {
@@ -45,7 +46,12 @@ async function DashboardContent() {
   // Show only the nearest 5 upcoming events on the dashboard
   const upcomingEvents = allUpcomingEvents.slice(0, 5);
 
-  // Payment/RSVP counts will be wired up in Task 013/014.
+  // Fetch the current user's RSVPs for all visible events in a single query.
+  // This gives us a map of { eventId -> Rsvp } for O(1) badge lookups below.
+  const eventIds = upcomingEvents.map((e) => e.id);
+  const rsvpMap = await getUserRsvpsForEvents(eventIds);
+
+  // Payment/RSVP counts will be wired up in Task 014.
   // For now, the unpaid banner is hidden (unpaidCount = 0).
   const unpaidCount = 0;
 
@@ -84,8 +90,9 @@ async function DashboardContent() {
               <EventCard
                 key={event.id}
                 event={event}
-                // userRsvpStatus and rsvpCount will be wired in Task 013
-                userRsvpStatus={undefined}
+                // Look up the user's RSVP status for this specific event from the map.
+                // undefined means the user hasn't responded yet (no badge shown).
+                userRsvpStatus={rsvpMap[event.id]?.status ?? undefined}
                 rsvpCount={0}
               />
             ))}
