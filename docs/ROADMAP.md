@@ -234,33 +234,33 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
   - ✅ 이벤트 생성/수정 폼을 Server Actions에 연결
   - ✅ Playwright MCP 테스트: 이벤트 CRUD 작업, 상태 전이, 권한 검사
 
-- **Task 013: RSVP 시스템 구현**
-  - RSVP 작업을 위한 Server Actions 구현
-    - `submitRsvp`: RSVP 생성 또는 업데이트 (going/maybe/not_going + 동반자 수)
-    - `getRsvpsByEvent`: 이벤트의 전체 RSVP (주최자/관리자)
-    - `getMyRsvp`: 이벤트에 대한 현재 사용자의 RSVP
-  - RSVP 비즈니스 로직 구현
-    - 마감일 제한: rsvp_deadline 또는 event start_at 이후 변경 차단
-    - 정원 체크: 총 인원(본인 + 동반자) 대비 max_capacity 검증
-    - RSVP 동반자 수 기반 회비 금액 자동 계산
-  - 이벤트 상세 페이지의 더미 RSVP 데이터를 실제 쿼리로 교체
-  - 대시보드의 이벤트 카드에 실제 RSVP 상태 배지 표시
-  - Playwright MCP 테스트: RSVP 제출, 마감일 제한, 정원 제한, 동반자 수 변경
+- **Task 013: RSVP 시스템 구현** ✅ - 완료
+  - ✅ RSVP 작업을 위한 Server Actions 구현
+    - ✅ `submitRsvp`: RSVP 생성 또는 업데이트 (going/maybe/not_going + 동반자 수)
+    - ✅ `getRsvpsByEvent`: 이벤트의 전체 RSVP (주최자/관리자)
+    - ✅ `getMyRsvp`: 이벤트에 대한 현재 사용자의 RSVP
+  - ✅ RSVP 비즈니스 로직 구현
+    - ✅ 마감일 제한: rsvp_deadline 또는 event start_at 이후 변경 차단
+    - ✅ 정원 체크: 총 인원(본인 + 동반자) 대비 max_capacity 검증
+    - ✅ RSVP 동반자 수 기반 회비 금액 자동 계산
+  - ✅ 이벤트 상세 페이지의 더미 RSVP 데이터를 실제 쿼리로 교체
+  - ✅ 대시보드의 이벤트 카드에 실제 RSVP 상태 배지 표시
+  - ✅ Playwright MCP 테스트: RSVP 제출, 마감일 제한, 정원 제한, 동반자 수 변경
 
-- **Task 014: 회비 납부 시스템 구현**
-  - 납부 작업을 위한 Server Actions 구현
-    - `reportPayment`: 납부 기록 생성 (status=pending, RSVP status=going 필요)
-    - `confirmPayment`: 주최자/관리자 납부 확인
-    - `rejectPayment`: 주최자/관리자 납부 반려
-    - `getPaymentsByEvent`: 이벤트의 전체 납부 기록 (주최자/관리자)
-    - `getMyPayment`: 이벤트에 대한 현재 사용자의 활성 납부 기록
-  - 납부 비즈니스 로직 구현
-    - 금액 자동 계산: fee_amount + (성인 동반자 수 × adult_guest_fee) + (아동 동반자 수 × child_guest_fee)
-    - 단일 활성 납부 규칙 적용: (event_id, user_id) 당 pending/confirmed 상태의 납부는 1건만 허용
-    - 반려 후 재신고 허용
-  - 이벤트 상세 및 참석자 관리 페이지의 더미 납부 데이터를 실제 데이터로 교체
-  - 참석자 관리 페이지의 확인/반려 버튼 연결
-  - Playwright MCP 테스트: 납부 신고, 확인/반려 플로우, 반려 후 재신고, 권한 검사
+- **Task 014: 회비 납부 시스템 구현** ✅ - 완료
+  - ✅ 납부 작업을 위한 Server Actions 구현
+    - ✅ `reportPayment`: 납부 기록 생성 (status=pending, RSVP status=going 필요)
+    - ✅ `confirmPayment`: 주최자/관리자 납부 확인
+    - ✅ `rejectPayment`: 주최자/관리자 납부 반려
+    - ✅ `getPaymentsByEvent`: 이벤트의 전체 납부 기록 (주최자/관리자)
+    - ✅ `getMyPayment`: 이벤트에 대한 현재 사용자의 활성 납부 기록
+  - ✅ 납부 비즈니스 로직 구현
+    - ✅ 금액 자동 계산: fee_amount + (성인 동반자 수 × adult_guest_fee) + (아동 동반자 수 × child_guest_fee)
+    - ✅ 단일 활성 납부 규칙 적용: (event_id, user_id) 당 pending/confirmed 상태의 납부는 1건만 허용
+    - ✅ 반려 후 재신고 허용
+  - ✅ 이벤트 상세 및 참석자 관리 페이지의 더미 납부 데이터를 실제 데이터로 교체
+  - ✅ 참석자 관리 페이지의 확인/반려 버튼 연결
+  - ✅ Playwright MCP 테스트: 납부 신고, 확인/반려 플로우, 반려 후 재신고, 권한 검사
 
 - **Task 015: 회원 관리 및 프로필 API**
   - 회원 관리를 위한 Server Actions 구현 (관리자 전용)
