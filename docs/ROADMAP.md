@@ -181,7 +181,7 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
     - ✅ 수정 모드 토글 및 "저장" 버튼
     - ✅ React Hook Form + Zod 검증
 
-### Phase 3: 핵심 기능 구현
+### Phase 3: 핵심 기능 구현 ✅
 
 데이터베이스 마이그레이션 적용, API 레이어 구축, 비즈니스 로직 구현, 더미 데이터를 실제 Supabase 쿼리로 교체합니다.
 
@@ -262,21 +262,21 @@ UI나 기능 구현에 앞서 전체 라우트 구조, 공유 레이아웃, Type
   - ✅ 참석자 관리 페이지의 확인/반려 버튼 연결
   - ✅ Playwright MCP 테스트: 납부 신고, 확인/반려 플로우, 반려 후 재신고, 권한 검사
 
-- **Task 015: 회원 관리 및 프로필 API**
-  - 회원 관리를 위한 Server Actions 구현 (관리자 전용)
-    - `approveMember`: 역할 변경 pending → member
-    - `rejectMember`: 프로필 삭제 (또는 rejected로 표시)
-    - `promoteToAdmin`: 역할 변경 member → admin
-    - `getAllMembers`: 필터링이 포함된 전체 회원 목록
-    - `getPendingMembers`: 승인 대기 회원 목록
-  - 주최자 관리를 위한 Server Actions 구현
-    - `addOrganizer`: 회원을 이벤트 주최자로 추가 (관리자만 가능)
-    - `removeOrganizer`: 이벤트 주최자 제거 (관리자만 가능)
-    - `getEventOrganizers`: 이벤트의 주최자 목록
-  - 프로필 업데이트 Server Action 구현
-    - `updateProfile`: 본인 프로필 정보 수정
-  - 회원 관리, 프로필, 주최자 관리 UI의 더미 데이터를 실제 데이터로 교체
-  - Playwright MCP 테스트: 회원 승인/반려 플로우, 관리자 승격, 주최자 위임, 프로필 수정
+- **Task 015: 회원 관리 및 프로필 API** ✅ - 완료
+  - ✅ 회원 관리를 위한 Server Actions 구현 (관리자 전용)
+    - ✅ `approveMember`: 역할 변경 pending → member
+    - ✅ `rejectMember`: 프로필 삭제 (또는 rejected로 표시)
+    - ✅ `promoteToAdmin`: 역할 변경 member → admin
+    - ✅ `getAllMembers`: 필터링이 포함된 전체 회원 목록
+    - ✅ `getPendingMembers`: 승인 대기 회원 목록
+  - ✅ 주최자 관리를 위한 Server Actions 구현
+    - ✅ `addOrganizer`: 회원을 이벤트 주최자로 추가 (관리자만 가능)
+    - ✅ `removeOrganizer`: 이벤트 주최자 제거 (관리자만 가능)
+    - ✅ `getEventOrganizers`: 이벤트의 주최자 목록
+  - ✅ 프로필 업데이트 Server Action 구현
+    - ✅ `updateProfile`: 본인 프로필 정보 수정
+  - ✅ 회원 관리, 프로필, 주최자 관리 UI의 더미 데이터를 실제 데이터로 교체
+  - ✅ Playwright MCP 테스트: 회원 승인/반려 플로우, 관리자 승격, 주최자 위임, 프로필 수정
 
 - **Task 016: E2E 통합 테스트**
   - Playwright MCP 전체 사용자 플로우 테스트
