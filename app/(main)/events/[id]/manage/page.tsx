@@ -36,11 +36,25 @@ async function ManageEventContent({ params }: PageProps) {
   // Await params inside the Suspense boundary to satisfy cacheComponents mode
   const { id } = await params;
 
-  // Fetch the event — returns 404 if not found or RLS blocks access
-  const { event } = await getEventById(id);
+  // Fetch the event and organizers — returns 404 if not found or RLS blocks access
+  const { event, organizers } = await getEventById(id);
   if (!event) notFound();
 
   const supabase = await createClient();
+
+  // Determine if the current user is an admin so we can show the organizer section.
+  // getClaims() reads the JWT locally — no Auth API network call needed.
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const userId = claimsData?.claims?.sub ?? null;
+  let isAdmin = false;
+  if (userId) {
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+    isAdmin = profileData?.role === "admin";
+  }
 
   // Fetch only 'going' RSVPs with joined profile data for display
   const { data: goingRsvps } = await supabase
@@ -92,7 +106,12 @@ async function ManageEventContent({ params }: PageProps) {
   return (
     <div>
       <PageHeader title="참석자 & 회비 관리" backHref={`/events/${id}`} />
-      <ManageEventClient event={event} attendees={attendees} />
+      <ManageEventClient
+        event={event}
+        attendees={attendees}
+        isAdmin={isAdmin}
+        organizers={organizers}
+      />
     </div>
   );
 }

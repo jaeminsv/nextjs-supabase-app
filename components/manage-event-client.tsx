@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { PaymentStatusBadge } from "@/components/payment-status-badge";
 import { RsvpStatusBadge } from "@/components/rsvp-status-badge";
 import { EmptyState } from "@/components/empty-state";
-import type { Event } from "@/lib/types/event";
+import type { Event, EventOrganizer } from "@/lib/types/event";
 import type { Rsvp } from "@/lib/types/rsvp";
 import type { Payment } from "@/lib/types/payment";
 import type { Profile } from "@/lib/types/profile";
@@ -34,21 +34,23 @@ type TabValue = "all" | "pending" | "confirmed" | "unpaid";
 interface ManageEventClientProps {
   event: Event;
   attendees: AttendeeRow[];
+  // Whether the current user is an admin — controls visibility of the organizer section
+  isAdmin: boolean;
+  // Current list of organizers for this event (read-only display in manage page)
+  organizers: EventOrganizer[];
 }
 
 export function ManageEventClient({
   event,
   attendees,
+  isAdmin,
+  organizers,
 }: ManageEventClientProps) {
   // Controls which payment-status filter tab is active
   const [activeTab, setActiveTab] = useState<TabValue>("all");
   // Tracks the payment ID currently being processed (null = no action in progress).
   // Disables all confirm/reject buttons while one request is pending to prevent double-submit.
   const [loadingPaymentId, setLoadingPaymentId] = useState<string | null>(null);
-
-  // TODO (Task 015): derive isAdmin from the authenticated user's profile role.
-  // Organizer management section is hidden until role check is wired up.
-  const isAdmin = false;
 
   // ─── Stats calculation ─────────────────────────────────────────────────────
 
@@ -212,14 +214,33 @@ export function ManageEventClient({
         )}
       </div>
 
-      {/* ─── Organizer Management Section (admin only) ────────────────────── */}
-      {/* TODO (Task 015): implement organizer add/remove with real profiles query */}
+      {/* ─── Organizer List Section (admin only, read-only) ──────────────── */}
+      {/* Organizer add/remove is available on the event edit page (/events/[id]/edit) */}
       {isAdmin && (
         <section className="m-4 space-y-3 rounded-lg border p-4">
-          <h2 className="text-base font-semibold">주최자 관리</h2>
-          <div className="text-sm text-muted-foreground">
-            주최자 ID: {event.created_by}
-          </div>
+          <h2 className="text-base font-semibold">주최자 목록</h2>
+          {organizers.length > 0 ? (
+            // Display each organizer's display name and full name in a simple list
+            <ul className="space-y-1">
+              {organizers.map((organizer) => (
+                <li key={organizer.user_id} className="text-sm">
+                  <span className="font-medium">
+                    {organizer.profile.display_name}
+                  </span>
+                  <span className="ml-1 text-muted-foreground">
+                    ({organizer.profile.full_name})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              등록된 주최자가 없습니다.
+            </p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            주최자를 추가하거나 제거하려면 이벤트 수정 페이지를 이용하세요.
+          </p>
         </section>
       )}
     </div>

@@ -8,12 +8,13 @@
  * Action buttons (approve, reject, promote) are wired in Task 015.
  */
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
 import { EmptyState } from "@/components/empty-state";
+import { approveMember, rejectMember, promoteToAdmin } from "@/actions/members";
 import type { Profile, ProfileRole } from "@/lib/types/profile";
 
 // ─── Role Badge ─────────────────────────────────────────────────────────────
@@ -70,6 +71,35 @@ function buildEducationSummary(profile: Profile): string {
 function PendingCard({ profile }: { profile: Profile }) {
   const educationSummary = buildEducationSummary(profile);
 
+  // useTransition gives us isPending (loading state) and startTransition (non-blocking wrapper).
+  // Each PendingCard manages its own loading state independently so clicking one card
+  // does not disable buttons on other cards.
+  const [isPending, startTransition] = useTransition();
+
+  /**
+   * Calls the approveMember Server Action inside a React transition.
+   * startTransition marks the update as non-urgent so the UI stays interactive
+   * while the server round-trip completes. isPending becomes true during this time.
+   */
+  function handleApprove() {
+    startTransition(async () => {
+      const result = await approveMember(profile.id);
+      if (result.error) alert(result.error);
+      // On success, revalidatePath in the action triggers a Server Component re-render
+      // so the card disappears from the list automatically — no manual state update needed.
+    });
+  }
+
+  /**
+   * Calls the rejectMember Server Action inside a React transition.
+   */
+  function handleReject() {
+    startTransition(async () => {
+      const result = await rejectMember(profile.id);
+      if (result.error) alert(result.error);
+    });
+  }
+
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
@@ -91,15 +121,16 @@ function PendingCard({ profile }: { profile: Profile }) {
           직장: {profile.company} · {profile.job_title}
         </div>
       )}
-      {/* TODO (Task 015): wire up approve/reject Server Actions */}
       <div className="mt-3 flex gap-2">
-        <Button size="sm" onClick={() => console.log("approve", profile.id)}>
+        {/* disabled during the server round-trip to prevent double-clicks */}
+        <Button size="sm" onClick={handleApprove} disabled={isPending}>
           승인
         </Button>
         <Button
           size="sm"
           variant="outline"
-          onClick={() => console.log("reject", profile.id)}
+          onClick={handleReject}
+          disabled={isPending}
         >
           반려
         </Button>
@@ -112,6 +143,20 @@ function PendingCard({ profile }: { profile: Profile }) {
 
 function MemberCard({ profile }: { profile: Profile }) {
   const joinDate = new Date(profile.created_at).toLocaleDateString("ko-KR");
+
+  // Each MemberCard tracks its own promotion loading state independently
+  const [isPending, startTransition] = useTransition();
+
+  /**
+   * Calls the promoteToAdmin Server Action inside a React transition.
+   * After success, revalidatePath in the action refreshes the member list.
+   */
+  function handlePromote() {
+    startTransition(async () => {
+      const result = await promoteToAdmin(profile.id);
+      if (result.error) alert(result.error);
+    });
+  }
 
   return (
     <div className="rounded-lg border bg-card p-4 shadow-sm">
@@ -127,12 +172,13 @@ function MemberCard({ profile }: { profile: Profile }) {
       <div className="mb-3 text-sm text-muted-foreground">
         가입일: {joinDate}
       </div>
-      {/* TODO (Task 015): wire up promote Server Action */}
+      {/* Only 'member' role users can be promoted to admin */}
       {profile.role === "member" && (
         <Button
           size="sm"
           variant="outline"
-          onClick={() => console.log("promote", profile.id)}
+          onClick={handlePromote}
+          disabled={isPending}
         >
           관리자 승격
         </Button>

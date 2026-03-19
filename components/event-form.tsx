@@ -9,7 +9,8 @@
  * to avoid NaN/validation errors from HTML inputs + zodResolver.
  * Conversion to proper EventFormData types (ISO string, number) happens at submit time.
  *
- * Organizer management (adding/removing co-organizers) is deferred to Task 015.
+ * Organizer management (adding/removing co-organizers) is available in edit mode
+ * for admins. Uses searchMembers, addOrganizer, removeOrganizer Server Actions.
  */
 
 import { useState } from "react";
@@ -22,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { EventFormData } from "@/lib/validations/event";
+import type { EventOrganizer } from "@/lib/types/event";
 import {
   createEvent,
   updateEvent,
@@ -29,6 +31,12 @@ import {
   cancelEvent,
   completeEvent,
 } from "@/actions/events";
+import {
+  addOrganizer,
+  removeOrganizer,
+  searchMembers,
+} from "@/actions/organizers";
+import type { MemberSearchResult } from "@/actions/organizers";
 
 // ─── Props ───────────────────────────────────────────────────────────────────
 
@@ -39,6 +47,10 @@ interface EventFormProps {
   defaultValues?: Partial<EventFormData>;
   // The ID of the event being edited (edit mode only)
   eventId?: string;
+  // Current list of organizers for the event (edit mode only)
+  initialOrganizers?: EventOrganizer[];
+  // Whether the current user is an admin (controls organizer management visibility)
+  isAdmin?: boolean;
 }
 
 // ─── Internal form schema ─────────────────────────────────────────────────────
@@ -120,7 +132,13 @@ function toEventFormData(data: FormValues): EventFormData {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function EventForm({ mode, defaultValues, eventId }: EventFormProps) {
+export function EventForm({
+  mode,
+  defaultValues,
+  eventId,
+  initialOrganizers = [],
+  isAdmin = false,
+}: EventFormProps) {
   const router = useRouter();
 
   // Track whether a server action is in flight to disable buttons during submission
@@ -128,6 +146,21 @@ export function EventForm({ mode, defaultValues, eventId }: EventFormProps) {
 
   // Store server-side error messages for display below the action buttons
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // ─── Organizer management state ──────────────────────────────────────────
+
+  // Current list of organizers for this event (starts with server-fetched data)
+  const [organizers, setOrganizers] =
+    useState<EventOrganizer[]>(initialOrganizers);
+
+  // Text typed in the member search input
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Results returned by searchMembers Server Action
+  const [searchResults, setSearchResults] = useState<MemberSearchResult[]>([]);
+
+  // True while searchMembers is running (shows loading indicator in dropdown)
+  const [isSearching, setIsSearching] = useState(false);
 
   const {
     register,
@@ -242,6 +275,78 @@ export function EventForm({ mode, defaultValues, eventId }: EventFormProps) {
 
     // Refresh the current page so the updated status is reflected
     router.push(`/events/${eventId}`);
+  };
+
+  // ─── Organizer management handlers ───────────────────────────────────────
+
+  /**
+   * Called when the user types in the member search input.
+   * Fires the searchMembers Server Action and updates the dropdown results.
+   * No debounce — fires on every keystroke for simplicity.
+   *
+   * @param query - The current value of the search input
+   */
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      // Clear results when the input is empty so the dropdown disappears
+      setSearchResults([]);
+      return;
+    }
+    setIsSearching(true);
+    const results = await searchMembers(query);
+    // Filter out members who are already organizers to avoid duplicate adds
+    const currentUserIds = new Set(organizers.map((o) => o.user_id));
+    setSearchResults(results.filter((r) => !currentUserIds.has(r.id)));
+    setIsSearching(false);
+  };
+
+  /**
+   * Adds the selected member as an organizer by calling the Server Action,
+   * then optimistically updates local organizers state and clears the search.
+   *
+   * @param member - The search result item that was clicked
+   */
+  const handleAddOrganizer = async (member: MemberSearchResult) => {
+    if (!eventId) return;
+    const result = await addOrganizer(eventId, member.id);
+    if (result.error) {
+      setErrorMessage(result.error);
+      return;
+    }
+    // Optimistically add to local state so the UI updates without a page reload
+    setOrganizers((prev) => [
+      ...prev,
+      {
+        event_id: eventId,
+        user_id: member.id,
+        profile: {
+          id: member.id,
+          display_name: member.display_name,
+          full_name: member.full_name,
+        },
+      },
+    ]);
+    // Clear search state after a successful add
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  /**
+   * Removes a member from the organizer list by calling the Server Action,
+   * then updates local state to hide the removed organizer immediately.
+   *
+   * @param userId - The user_id of the organizer to remove
+   */
+  const handleRemoveOrganizer = async (userId: string) => {
+    if (!eventId) return;
+    const result = await removeOrganizer(eventId, userId);
+    if (result.error) {
+      setErrorMessage(result.error);
+      return;
+    }
+    // Optimistically remove from local state
+    setOrganizers((prev) => prev.filter((o) => o.user_id !== userId));
   };
 
   return (
@@ -410,7 +515,74 @@ export function EventForm({ mode, defaultValues, eventId }: EventFormProps) {
       </section>
 
       {/* ─── Organizer Management Section ────────────────────────────────────── */}
-      {/* TODO (Task 015): implement organizer add/remove with real profiles query */}
+      {/* Only visible to admins in edit mode — organizers are set after event creation */}
+      {isAdmin && mode === "edit" && (
+        <section className="space-y-3 rounded-lg border p-4">
+          <h2 className="text-base font-semibold">주최자 관리</h2>
+
+          {/* Current organizer list — each chip has an X button to remove */}
+          {organizers.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {organizers.map((organizer) => (
+                <div
+                  key={organizer.user_id}
+                  className="flex items-center gap-1 rounded-full bg-secondary px-3 py-1 text-sm"
+                >
+                  <span>{organizer.profile.display_name}</span>
+                  {/* Remove button — calls removeOrganizer Server Action */}
+                  <button
+                    type="button"
+                    className="ml-1 text-muted-foreground hover:text-foreground"
+                    onClick={() => handleRemoveOrganizer(organizer.user_id)}
+                    aria-label={`${organizer.profile.display_name} 제거`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Member search — type to find approved members by name */}
+          <div className="relative">
+            <Input
+              placeholder="회원 이름으로 검색..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+            />
+
+            {/* Search results dropdown — shown when there are results or a search is running */}
+            {(searchResults.length > 0 || isSearching) && (
+              <div className="absolute left-0 top-full z-10 mt-1 w-full rounded-md border bg-popover shadow-md">
+                {isSearching ? (
+                  // Loading indicator while the Server Action is in flight
+                  <div className="px-3 py-2 text-sm text-muted-foreground">
+                    검색 중...
+                  </div>
+                ) : (
+                  searchResults.map((member) => (
+                    <button
+                      key={member.id}
+                      type="button"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                      onClick={() => handleAddOrganizer(member)}
+                    >
+                      <span className="font-medium">{member.display_name}</span>
+                      <span className="text-muted-foreground">
+                        ({member.full_name})
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            승인된 회원 중 이름으로 검색하여 주최자로 추가할 수 있습니다.
+          </p>
+        </section>
+      )}
 
       {/* ─── Server-side Error Message ───────────────────────────────────────── */}
       {errorMessage && (

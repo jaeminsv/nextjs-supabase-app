@@ -30,6 +30,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { updateProfile } from "@/actions/profile";
+import type { ProfileUpdateData } from "@/actions/profile";
 import type { Database } from "@/lib/supabase/database.types";
 
 // Convenience alias — matches the shape Supabase returns from profiles table
@@ -160,11 +162,32 @@ export function ProfileClient({ profile }: ProfileClientProps) {
       kaist_phd_year: parseYear(data.kaist_phd_year),
     };
 
-    // TODO (Phase 4): replace console.log with updateProfile server action
-    // const result = await updateProfile(transformed);
-    // if (result.error) { setSubmitError(result.error); setIsSubmitting(false); return; }
-    console.log("profile update:", transformed);
+    // Build the payload for updateProfile, converting undefined → null for nullable DB fields.
+    // Empty strings from optional text inputs are treated as null (clear the field).
+    const payload: ProfileUpdateData = {
+      display_name: transformed.display_name,
+      phone: transformed.phone,
+      kaist_bs_year: transformed.kaist_bs_year ?? null,
+      kaist_bs_major: transformed.kaist_bs_major || null,
+      is_integrated_ms_phd: transformed.is_integrated_ms_phd,
+      kaist_ms_year: transformed.kaist_ms_year ?? null,
+      kaist_ms_major: transformed.kaist_ms_major || null,
+      kaist_phd_year: transformed.kaist_phd_year ?? null,
+      kaist_phd_major: transformed.kaist_phd_major || null,
+      company: transformed.company || null,
+      job_title: transformed.job_title || null,
+      venmo_handle: transformed.venmo_handle || null,
+      zelle_handle: transformed.zelle_handle || null,
+    };
 
+    const result = await updateProfile(payload);
+    if (result.error) {
+      setSubmitError(result.error);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Success: exit edit mode. revalidatePath in the action refreshes the Server Component.
     setIsSubmitting(false);
     setIsEditing(false);
   };
