@@ -2,6 +2,7 @@
 // Wraps data-fetching in Suspense as required by cacheComponents mode.
 
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import {
   getEventById,
@@ -9,7 +10,13 @@ import {
   getMyPaymentForEvent,
 } from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
-import { EventDetailClient } from "@/components/event-detail-client";
+
+// Dynamic import splits EventDetailClient into its own JS chunk.
+// The detail page contains rich interactive UI (RSVP, payment forms) that
+// is large enough to benefit from code splitting.
+const EventDetailClient = dynamic(() =>
+  import("@/components/event-detail-client").then((m) => m.EventDetailClient),
+);
 
 interface PageProps {
   params: Promise<{ id: string }>;

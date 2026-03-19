@@ -6,11 +6,18 @@
  */
 
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getEventById } from "@/lib/queries/events";
 import { PageHeader } from "@/components/page-header";
-import { ManageEventClient } from "@/components/manage-event-client";
+
+// Dynamic import splits ManageEventClient into its own JS chunk.
+// The manage page is only accessed by organizers/admins, so deferring its
+// JS download reduces the initial bundle for regular member page loads.
+const ManageEventClient = dynamic(() =>
+  import("@/components/manage-event-client").then((m) => m.ManageEventClient),
+);
 import type { Rsvp } from "@/lib/types/rsvp";
 import type { Payment } from "@/lib/types/payment";
 import type { Profile } from "@/lib/types/profile";
@@ -63,10 +70,13 @@ async function ManageEventContent({ params }: PageProps) {
     .eq("event_id", id)
     .eq("status", "going");
 
-  // Fetch all payment records for this event
+  // Fetch payment records with only the columns needed for the attendee management UI.
+  // Includes rsvp_id for linking payments to RSVPs, and method/status for display.
   const { data: eventPayments } = await supabase
     .from("payments")
-    .select("*")
+    .select(
+      "id, event_id, user_id, rsvp_id, status, method, amount, created_at, updated_at",
+    )
     .eq("event_id", id);
 
   const rsvps = goingRsvps ?? [];

@@ -26,9 +26,14 @@ export async function getUpcomingEvents(): Promise<Event[]> {
   try {
     const supabase = await createClient();
 
+    // Select only the columns needed for list/card display.
+    // Excludes large text fields (description, payment_instructions) and
+    // per-guest fee columns that are only needed on the detail page.
     const { data, error } = await supabase
       .from("events")
-      .select("*")
+      .select(
+        "id, title, status, start_at, end_at, rsvp_deadline, location, max_capacity, fee_amount, created_by, created_at, updated_at",
+      )
       .eq("status", "published")
       .gt("start_at", new Date().toISOString())
       .order("start_at", { ascending: true });
@@ -56,9 +61,14 @@ export async function getPastEvents(): Promise<Event[]> {
   try {
     const supabase = await createClient();
 
+    // Select only the columns needed for list/card display (same set as getUpcomingEvents).
+    // Full event details (description, payment_instructions, guest fees) are loaded
+    // individually via getEventById when the user visits the event detail page.
     const { data, error } = await supabase
       .from("events")
-      .select("*")
+      .select(
+        "id, title, status, start_at, end_at, rsvp_deadline, location, max_capacity, fee_amount, created_by, created_at, updated_at",
+      )
       .in("status", ["completed", "cancelled"])
       .order("start_at", { ascending: false });
 

@@ -2,9 +2,17 @@
 // Wraps data-fetching in Suspense as required by cacheComponents mode.
 
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/server";
-import { MemberManagementClient } from "@/components/member-management-client";
 import type { Profile } from "@/lib/types/profile";
+
+// Dynamic import splits MemberManagementClient into its own JS chunk.
+// This page is admin-only, so splitting it reduces the bundle for member page loads.
+const MemberManagementClient = dynamic(() =>
+  import("@/components/member-management-client").then(
+    (m) => m.MemberManagementClient,
+  ),
+);
 
 /**
  * Inner async component that fetches all members from the database.
@@ -13,10 +21,13 @@ import type { Profile } from "@/lib/types/profile";
 async function MemberManagementContent() {
   const supabase = await createClient();
 
-  // Fetch all profiles ordered by creation date (newest first)
+  // Fetch profiles with only the columns needed for the member management UI.
+  // Excludes KAIST major names, venmo/zelle handles, and timestamps not shown in the UI.
   const { data, error } = await supabase
     .from("profiles")
-    .select("*")
+    .select(
+      "id, full_name, display_name, email, role, phone, company, job_title, kaist_bs_year, kaist_ms_year, kaist_phd_year, created_at",
+    )
     .order("created_at", { ascending: false });
 
   if (error) {

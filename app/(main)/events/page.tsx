@@ -2,9 +2,16 @@
 // Wraps data-fetching in Suspense as required by cacheComponents mode.
 
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { getUpcomingEvents, getPastEvents } from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
-import { EventsListClient } from "@/components/events-list-client";
+
+// Dynamic import splits EventsListClient into its own JS chunk.
+// This reduces the initial bundle size because the component code is only
+// downloaded after the server renders the page shell and sends it to the browser.
+const EventsListClient = dynamic(() =>
+  import("@/components/events-list-client").then((m) => m.EventsListClient),
+);
 
 /**
  * Inner async component that fetches all uncached data.
@@ -17,18 +24,17 @@ async function EventsContent() {
     getPastEvents(),
   ]);
 
-  // Get the current user ID to pass into the client component.
-  // It will be used in Task 013 to look up the user's RSVP status per event.
+  // Read the current user's ID from the JWT cookie without a network call.
+  // getClaims() is preferred over getUser() to avoid Auth API rate limits (429 errors).
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: claimsData } = await supabase.auth.getClaims();
+  const currentUserId = claimsData?.claims?.sub ?? "";
 
   return (
     <EventsListClient
       upcomingEvents={upcomingEvents}
       pastEvents={pastEvents}
-      currentUserId={user?.id ?? ""}
+      currentUserId={currentUserId}
     />
   );
 }
