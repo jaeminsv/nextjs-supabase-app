@@ -10,8 +10,8 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  // Ignore build artifacts and auto-generated files
-  { ignores: [".next/", "node_modules/", "shrimp_data/"] },
+  // Ignore build artifacts, auto-generated files, and git worktrees
+  { ignores: [".next/", "node_modules/", "shrimp_data/", ".worktrees/"] },
   ...compat.extends("next/core-web-vitals", "next/typescript", "prettier"),
 ];
 

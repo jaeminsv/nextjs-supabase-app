@@ -31,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { updateProfile } from "@/actions/profile";
+import { signOut } from "@/actions/auth";
 import type { ProfileUpdateData } from "@/actions/profile";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -481,6 +482,24 @@ export function ProfileClient({ profile }: ProfileClientProps) {
           </div>
         </section>
       </form>
+
+      {/* ── Logout section ── */}
+      {/*
+       * Using a <form> with a server action is the recommended Next.js pattern
+       * for logout buttons. This avoids the redirect()-inside-try-catch problem
+       * because form actions handle redirects at the framework level.
+       */}
+      <div className="mt-6 border-t pt-6">
+        <form action={signOut}>
+          <Button
+            type="submit"
+            variant="outline"
+            className="w-full text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            로그아웃
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
