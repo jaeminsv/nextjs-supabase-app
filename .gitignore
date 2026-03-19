@@ -49,3 +49,4 @@ shrimp_data/
 
 # superpowers brainstorming session artifacts
 .superpowers/
+.worktrees/
