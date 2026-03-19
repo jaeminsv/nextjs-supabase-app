@@ -12,6 +12,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Event, EventOrganizer } from "@/lib/types/event";
 import type { Rsvp } from "@/lib/types/rsvp";
+import type { Payment } from "@/lib/types/payment";
 
 /**
  * Returns upcoming published events sorted by start date (soonest first).
@@ -222,5 +223,57 @@ export async function getUserRsvpsForEvents(
   } catch (err) {
     console.error("getUserRsvpsForEvents unexpected error:", err);
     return {};
+  }
+}
+
+/**
+ * Fetches the currently authenticated user's active payment for a given event.
+ *
+ * "Active" means the payment has status 'pending' or 'confirmed'.
+ * A rejected payment is not returned — the member can re-submit after rejection.
+ *
+ * This is a Server Component query function, NOT a Server Action.
+ * It is used to pass initial payment state as a prop to the Client Component,
+ * avoiding a client-side fetch on first render (server-side hydration pattern).
+ *
+ * Uses getClaims() to read the user ID from the local JWT (no Auth API call).
+ *
+ * @param eventId - UUID of the event to check payment for
+ * @returns The Payment record if an active one exists, or null otherwise
+ */
+export async function getMyPaymentForEvent(
+  eventId: string,
+): Promise<Payment | null> {
+  try {
+    const supabase = await createClient();
+
+    // Read user ID from the JWT cookie (local, no network call)
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const userId = claimsData?.claims?.sub;
+
+    // If the user is not authenticated, they have no payment to show
+    if (!userId) {
+      return null;
+    }
+
+    // maybeSingle() returns null instead of throwing when no row matches,
+    // which is the expected case for members who haven't submitted a payment yet.
+    const { data, error } = await supabase
+      .from("payments")
+      .select("*")
+      .eq("event_id", eventId)
+      .eq("user_id", userId)
+      .in("status", ["pending", "confirmed"])
+      .maybeSingle();
+
+    if (error) {
+      console.error("getMyPaymentForEvent error:", error);
+      return null;
+    }
+
+    return (data as Payment) ?? null;
+  } catch (err) {
+    console.error("getMyPaymentForEvent unexpected error:", err);
+    return null;
   }
 }

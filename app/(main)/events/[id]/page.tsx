@@ -3,7 +3,11 @@
 
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { getEventById, getMyRsvpForEvent } from "@/lib/queries/events";
+import {
+  getEventById,
+  getMyRsvpForEvent,
+  getMyPaymentForEvent,
+} from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
 import { EventDetailClient } from "@/components/event-detail-client";
 
@@ -19,12 +23,14 @@ async function EventDetailContent({ params }: PageProps) {
   // Await params inside the Suspense boundary to satisfy cacheComponents mode
   const { id } = await params;
 
-  // Fetch the event, RSVP, and user auth info in parallel to minimize latency
-  const [{ event, organizers }, initialRsvp, supabase] = await Promise.all([
-    getEventById(id),
-    getMyRsvpForEvent(id),
-    createClient(),
-  ]);
+  // Fetch the event, RSVP, payment, and user auth info in parallel to minimize latency
+  const [{ event, organizers }, initialRsvp, initialPayment, supabase] =
+    await Promise.all([
+      getEventById(id),
+      getMyRsvpForEvent(id),
+      getMyPaymentForEvent(id),
+      createClient(),
+    ]);
 
   // Return 404 if the event does not exist or RLS blocked access
   if (!event) notFound();
@@ -57,8 +63,7 @@ async function EventDetailContent({ params }: PageProps) {
     <EventDetailClient
       event={event}
       initialRsvp={initialRsvp ?? undefined}
-      // initialPayment will be wired in Task 014
-      initialPayment={undefined}
+      initialPayment={initialPayment ?? undefined}
       isAdmin={isAdmin}
       isOrganizer={isOrganizer}
     />

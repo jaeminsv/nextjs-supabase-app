@@ -12,6 +12,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Calendar, Clock, Link2, MapPin, Minus, Plus } from "lucide-react";
 import { submitRsvp } from "@/actions/rsvp";
+import { reportPayment } from "@/actions/payment";
 import { PageHeader } from "@/components/page-header";
 import { EventStatusBadge } from "@/components/event-status-badge";
 import { RsvpStatusBadge } from "@/components/rsvp-status-badge";
@@ -26,7 +27,7 @@ import {
 } from "@/components/ui/sheet";
 import type { Event } from "@/lib/types/event";
 import type { Rsvp, RsvpStatus } from "@/lib/types/rsvp";
-import type { Payment } from "@/lib/types/payment";
+import type { Payment, PaymentMethod } from "@/lib/types/payment";
 
 interface EventDetailClientProps {
   event: Event;
@@ -69,6 +70,12 @@ export function EventDetailClient({
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Holds the error message returned by submitRsvp, if any (null when no error)
   const [rsvpError, setRsvpError] = useState<string | null>(null);
+  // Current user's payment record — initialized from server-resolved data, updated after submission
+  const [payment, setPayment] = useState<Payment | undefined>(initialPayment);
+  // Tracks whether a payment report submission is in progress (disables button to prevent double-submit)
+  const [isPaymentSubmitting, setIsPaymentSubmitting] = useState(false);
+  // Holds the error message returned by reportPayment, if any (null when no error)
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Format start date/time in Korean locale (e.g. "4월 15일 오후 03:00")
   const formattedStartDate = new Date(event.start_at).toLocaleDateString(
@@ -135,6 +142,53 @@ export function EventDetailClient({
     }
   };
 
+  /**
+   * Submits a payment report for the current event using the selected payment method.
+   *
+   * Calls the reportPayment Server Action with the currently selected method.
+   * On success: updates the local payment state to reflect pending status and closes the Sheet.
+   * On failure: displays the error message returned by the server action.
+   */
+  const handlePaymentReport = async () => {
+    // Guard: do not submit if already submitting
+    if (isPaymentSubmitting) return;
+
+    setIsPaymentSubmitting(true);
+    setPaymentError(null);
+
+    const result = await reportPayment(event.id, {
+      method: selectedPaymentMethod as PaymentMethod,
+      note: undefined,
+    });
+
+    setIsPaymentSubmitting(false);
+
+    if (result.error) {
+      // Display the server-side error message inside the Sheet
+      setPaymentError(result.error);
+      return;
+    }
+
+    // On success: optimistically update local payment state to 'pending'
+    // so the UI reflects the submission immediately without waiting for a page reload.
+    // The server has already revalidated the path, so a full reload would also work.
+    setPayment({
+      id: "",
+      event_id: event.id,
+      user_id: "",
+      rsvp_id: "",
+      amount: totalFee,
+      method: selectedPaymentMethod as PaymentMethod,
+      status: "pending",
+      note: null,
+      confirmed_by: null,
+      confirmed_at: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    setPaymentSheetOpen(false);
+  };
+
   // Check if RSVP deadline has passed (if no deadline, RSVP is always open)
   const isDeadlinePassed = event.rsvp_deadline
     ? new Date() > new Date(event.rsvp_deadline)
@@ -151,8 +205,8 @@ export function EventDetailClient({
   // Only members who responded 'going' are required to pay the fee
   const canPay = rsvpStatus === "going";
 
-  // Current payment status from the initial server-resolved data (undefined if no payment yet)
-  const paymentStatus = initialPayment?.status;
+  // Current payment status — read from the reactive payment state (updated after server action calls)
+  const paymentStatus = payment?.status;
 
   return (
     <div className="pb-20">
@@ -428,39 +482,42 @@ export function EventDetailClient({
               <SheetTitle>납부 방법 선택</SheetTitle>
             </SheetHeader>
 
-            {/* Payment method toggle buttons — one per supported transfer service */}
+            {/* Payment method toggle buttons — one per supported transfer service.
+                Note: 'other' is used internally (matches PaymentMethod type),
+                but displayed as '기타' to Korean-speaking users. */}
             <div className="my-4 grid grid-cols-2 gap-2">
-              {(["venmo", "zelle", "paypal", "기타"] as const).map((method) => (
+              {(
+                [
+                  { value: "venmo", label: "Venmo" },
+                  { value: "zelle", label: "Zelle" },
+                  { value: "paypal", label: "PayPal" },
+                  { value: "other", label: "기타" },
+                ] as const
+              ).map(({ value, label }) => (
                 <Button
-                  key={method}
+                  key={value}
                   variant={
-                    selectedPaymentMethod === method ? "default" : "outline"
+                    selectedPaymentMethod === value ? "default" : "outline"
                   }
-                  onClick={() => setSelectedPaymentMethod(method)}
-                  className="capitalize"
+                  onClick={() => setSelectedPaymentMethod(value)}
                 >
-                  {method === "기타"
-                    ? "기타"
-                    : method.charAt(0).toUpperCase() + method.slice(1)}
+                  {label}
                 </Button>
               ))}
             </div>
 
+            {/* Error message from the server action (e.g. no going RSVP, duplicate payment) */}
+            {paymentError && (
+              <p className="mb-2 text-sm text-destructive">{paymentError}</p>
+            )}
+
             <SheetFooter>
-              {/* Phase 3 TODO: call reportPayment server action instead of console.log */}
               <Button
                 className="w-full"
-                onClick={() => {
-                  console.log(
-                    "Payment reported:",
-                    selectedPaymentMethod,
-                    "amount:",
-                    totalFee,
-                  );
-                  setPaymentSheetOpen(false);
-                }}
+                onClick={handlePaymentReport}
+                disabled={isPaymentSubmitting}
               >
-                납부 완료 신고
+                {isPaymentSubmitting ? "신고 중..." : "납부 완료 신고"}
               </Button>
             </SheetFooter>
           </SheetContent>

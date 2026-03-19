@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { Users } from "lucide-react";
+import { confirmPayment, rejectPayment } from "@/actions/payment";
 import { Button } from "@/components/ui/button";
 import { PaymentStatusBadge } from "@/components/payment-status-badge";
 import { RsvpStatusBadge } from "@/components/rsvp-status-badge";
@@ -41,6 +42,9 @@ export function ManageEventClient({
 }: ManageEventClientProps) {
   // Controls which payment-status filter tab is active
   const [activeTab, setActiveTab] = useState<TabValue>("all");
+  // Tracks the payment ID currently being processed (null = no action in progress).
+  // Disables all confirm/reject buttons while one request is pending to prevent double-submit.
+  const [loadingPaymentId, setLoadingPaymentId] = useState<string | null>(null);
 
   // TODO (Task 015): derive isAdmin from the authenticated user's profile role.
   // Organizer management section is hidden until role check is wired up.
@@ -76,6 +80,41 @@ export function ManageEventClient({
           : attendees.filter(
               (a) => !a.payment || a.payment.status === "rejected",
             );
+
+  /**
+   * Confirms a member's pending payment.
+   * Sets the payment status to 'confirmed' via the confirmPayment Server Action.
+   * The server revalidates the manage page, so the list refreshes automatically.
+   *
+   * @param paymentId - UUID of the payment to confirm
+   */
+  const handleConfirm = async (paymentId: string) => {
+    setLoadingPaymentId(paymentId);
+    const result = await confirmPayment(paymentId, event.id);
+    setLoadingPaymentId(null);
+
+    if (result.error) {
+      console.error("confirmPayment error:", result.error);
+    }
+  };
+
+  /**
+   * Rejects a member's pending payment.
+   * Sets the payment status to 'rejected' via the rejectPayment Server Action.
+   * The server revalidates the manage page, so the list refreshes automatically.
+   * After rejection, the member can re-submit a new payment.
+   *
+   * @param paymentId - UUID of the payment to reject
+   */
+  const handleReject = async (paymentId: string) => {
+    setLoadingPaymentId(paymentId);
+    const result = await rejectPayment(paymentId, event.id);
+    setLoadingPaymentId(null);
+
+    if (result.error) {
+      console.error("rejectPayment error:", result.error);
+    }
+  };
 
   // Tab definitions for rendering the tab bar
   const tabs: { value: TabValue; label: string }[] = [
@@ -142,22 +181,25 @@ export function ManageEventClient({
                 </div>
               )}
 
-              {/* Confirm / Reject buttons — only shown for pending payments */}
-              {/* Phase 3 TODO: call confirmPayment / rejectPayment server actions */}
+              {/* Confirm / Reject buttons — only shown for pending payments.
+                  Both buttons are disabled while any payment action is in progress
+                  to prevent concurrent requests from creating inconsistent state. */}
               {payment?.status === "pending" && (
                 <div className="flex gap-2 pt-1">
                   <Button
                     size="sm"
                     className="flex-1"
-                    onClick={() => console.log("confirm", payment.id)}
+                    onClick={() => handleConfirm(payment.id)}
+                    disabled={loadingPaymentId !== null}
                   >
-                    확인
+                    {loadingPaymentId === payment.id ? "처리 중..." : "확인"}
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
                     className="flex-1"
-                    onClick={() => console.log("reject", payment.id)}
+                    onClick={() => handleReject(payment.id)}
+                    disabled={loadingPaymentId !== null}
                   >
                     반려
                   </Button>
