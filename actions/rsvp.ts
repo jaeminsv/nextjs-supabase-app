@@ -125,6 +125,8 @@ export async function submitRsvp(
       status: data.status,
       adult_guests: data.adult_guests,
       child_guests: data.child_guests,
+      // Store the member's optional message to organizers (null if not provided)
+      message_to_organizer: data.message_to_organizer ?? null,
     },
     { onConflict: "event_id,user_id" },
   );

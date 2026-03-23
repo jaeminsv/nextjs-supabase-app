@@ -19,6 +19,7 @@ import { EventStatusBadge } from "@/components/event-status-badge";
 import { RsvpStatusBadge } from "@/components/rsvp-status-badge";
 import { PaymentStatusBadge } from "@/components/payment-status-badge";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
   SheetContent,
@@ -56,6 +57,10 @@ export function EventDetailClient({
   // Guest counts — initialized from existing RSVP if available
   const [adultGuests, setAdultGuests] = useState(
     initialRsvp?.adult_guests ?? 0,
+  );
+  // Optional private message to organizers — initialized from existing RSVP
+  const [messageToOrganizer, setMessageToOrganizer] = useState(
+    initialRsvp?.message_to_organizer ?? "",
   );
   const [childGuests, setChildGuests] = useState(
     initialRsvp?.child_guests ?? 0,
@@ -133,6 +138,8 @@ export function EventDetailClient({
       status: rsvpStatus,
       adult_guests: adultGuests,
       child_guests: childGuests,
+      // Include the optional message to organizers (empty string → undefined → null in DB)
+      message_to_organizer: messageToOrganizer || undefined,
     });
 
     setIsSubmitting(false);
@@ -375,6 +382,27 @@ export function EventDetailClient({
                   </div>
                 </div>
               )}
+
+              {/* Message to organizers — optional textarea shown for all RSVP statuses.
+                  The message is private and only visible to admins and event organizers. */}
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">
+                  운영진에게 하고싶은 말 (선택)
+                </label>
+                <Textarea
+                  placeholder="운영진에게 전달할 내용을 입력해주세요 (선택사항)"
+                  value={messageToOrganizer}
+                  onChange={(e) => setMessageToOrganizer(e.target.value)}
+                  className="resize-none"
+                  rows={3}
+                  maxLength={500}
+                />
+                {messageToOrganizer.length > 0 && (
+                  <p className="text-right text-xs text-muted-foreground">
+                    {messageToOrganizer.length}/500
+                  </p>
+                )}
+              </div>
 
               {/* Error message returned by submitRsvp (e.g. deadline passed, full capacity) */}
               {rsvpError && (

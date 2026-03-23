@@ -96,6 +96,11 @@ async function ManageEventContent({ params }: PageProps) {
       status: rsvpRow.status,
       adult_guests: rsvpRow.adult_guests,
       child_guests: rsvpRow.child_guests,
+      // Include the optional message left by the member for organizers.
+      // Cast to any because Supabase inferred types won't know about the new
+      // column until the migration is applied and types are regenerated.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      message_to_organizer: (rsvpRow as any).message_to_organizer ?? null,
       created_at: rsvpRow.created_at,
       updated_at: rsvpRow.updated_at,
     };

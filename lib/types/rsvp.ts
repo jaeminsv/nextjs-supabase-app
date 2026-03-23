@@ -44,6 +44,11 @@ export interface Rsvp {
   // Children may have a different (often lower) fee than adults
   child_guests: number;
 
+  // Optional private message from the member to event organizers.
+  // Only visible to the member themselves and admins/organizers.
+  // Null when the member did not leave a message.
+  message_to_organizer: string | null;
+
   // ISO 8601 datetime string when this RSVP was first submitted
   created_at: string;
 

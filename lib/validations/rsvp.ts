@@ -12,5 +12,11 @@ export const rsvpSchema = z.object({
   // Number of child guests the member is bringing
   // Must be 0 or a positive integer — cannot be negative
   child_guests: z.number().int().min(0, "아동 동반자 수는 0 이상이어야 합니다"),
+  // Optional private message to event organizers (max 500 chars)
+  // Only visible to admins and event organizers, not to other members
+  message_to_organizer: z
+    .string()
+    .max(500, "500자 이하로 입력해주세요")
+    .optional(),
 });
 export type RsvpFormData = z.infer<typeof rsvpSchema>;
