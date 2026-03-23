@@ -44,6 +44,12 @@ async function EditEventContent({ params }: PageProps) {
     isAdmin = profileData?.role === "admin";
   }
 
+  // Determine if the current user is listed as an organizer for this event.
+  // Used to control visibility of the delete button in EventForm.
+  const isOrganizer = userId
+    ? organizers.some((o) => o.user_id === userId)
+    : false;
+
   // Convert null fields from the DB Event type to undefined for EventFormData compatibility.
   // The DB schema uses null for optional fields; Zod's .optional() expects undefined, not null.
   const formDefaults: Partial<EventFormData> = {
@@ -65,6 +71,7 @@ async function EditEventContent({ params }: PageProps) {
           eventId={id}
           initialOrganizers={organizers}
           isAdmin={isAdmin}
+          isOrganizer={isOrganizer}
         />
       </div>
     </div>

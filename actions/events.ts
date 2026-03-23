@@ -268,3 +268,70 @@ export async function completeEvent(
 
   return { success: true };
 }
+
+/**
+ * Permanently deletes an event and all associated data (RSVPs, organizers).
+ *
+ * Authorization: Only the event organizer or an admin may delete an event.
+ * Both checks are performed server-side for defense in depth.
+ *
+ * IMPORTANT: This is a hard delete — the record cannot be recovered.
+ * Related rows in rsvps and event_organizers are removed via DB FK cascade.
+ *
+ * Do NOT call redirect() here — return {} and let the caller handle
+ * navigation (consistent with the pattern used in this file).
+ *
+ * @param eventId - UUID of the event to delete
+ * @returns {} on success, or { error: string } on failure / unauthorized
+ */
+export async function deleteEvent(
+  eventId: string,
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  // Verify the caller is authenticated before any DB access
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    return { error: "Not authenticated. Please sign in again." };
+  }
+
+  // Check if the caller has admin role in their profile
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  const isAdmin = profile?.role === "admin";
+
+  // Check if the caller is listed as an organizer for this specific event
+  const { data: organizerRow } = await supabase
+    .from("event_organizers")
+    .select("user_id")
+    .eq("event_id", eventId)
+    .eq("user_id", userId)
+    .single();
+  const isOrganizer = !!organizerRow;
+
+  // Reject the request if the caller is neither admin nor organizer
+  if (!isAdmin && !isOrganizer) {
+    return { error: "이벤트를 삭제할 권한이 없습니다." };
+  }
+
+  // Hard-delete the event row — FK ON DELETE CASCADE removes related rows
+  // (rsvps, event_organizers) automatically in the DB schema
+  const { error: deleteError } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", eventId);
+
+  if (deleteError) {
+    console.error("deleteEvent error:", deleteError);
+    return { error: "이벤트 삭제에 실패했습니다." };
+  }
+
+  // Revalidate events list so the deleted event no longer appears
+  revalidatePath("/events");
+  revalidatePath("/dashboard");
+
+  return {};
+}

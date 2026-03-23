@@ -51,6 +51,8 @@ interface EventFormProps {
   initialOrganizers?: EventOrganizer[];
   // Whether the current user is an admin (controls organizer management visibility)
   isAdmin?: boolean;
+  // Whether the current user is listed as an organizer for this event (controls delete button visibility)
+  isOrganizer?: boolean;
 }
 
 // ─── Internal form schema ─────────────────────────────────────────────────────
