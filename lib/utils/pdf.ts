@@ -141,8 +141,12 @@ export async function generateMemberListPdf(
 ): Promise<void> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-  // Attempt to load Korean font; fall back to default if unavailable
-  await loadKoreanFont(doc);
+  // Attempt to load Korean font; capture the font name to pass into autoTable.
+  // autoTable manages its own font stack independently from doc.setFont(),
+  // so we must explicitly set styles.font — otherwise it reverts to Helvetica
+  // and Korean characters render as garbled Latin-1 bytes.
+  const koreanFont = await loadKoreanFont(doc);
+  const fontName = koreanFont ? "NanumGothic" : "helvetica";
 
   const today = todayString();
 
@@ -172,6 +176,8 @@ export async function generateMemberListPdf(
       fillColor: [248, 250, 252],
     },
     styles: {
+      // Must explicitly set font here — autoTable does not inherit doc.setFont()
+      font: fontName,
       fontSize: 10,
       cellPadding: 3,
     },
@@ -201,8 +207,10 @@ export async function generateAttendeeListPdf(
 ): Promise<void> {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-  // Attempt to load Korean font; fall back to default if unavailable
-  await loadKoreanFont(doc);
+  // Same font-propagation fix as generateMemberListPdf:
+  // autoTable requires styles.font to be set explicitly.
+  const koreanFont = await loadKoreanFont(doc);
+  const fontName = koreanFont ? "NanumGothic" : "helvetica";
 
   const today = todayString();
 
@@ -237,6 +245,8 @@ export async function generateAttendeeListPdf(
       fillColor: [248, 250, 252],
     },
     styles: {
+      // Must explicitly set font here — autoTable does not inherit doc.setFont()
+      font: fontName,
       fontSize: 10,
       cellPadding: 3,
     },
