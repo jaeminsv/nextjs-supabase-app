@@ -11,17 +11,33 @@
  *
  * Organizer management (adding/removing co-organizers) is available in edit mode
  * for admins. Uses searchMembers, addOrganizer, removeOrganizer Server Actions.
+ *
+ * New in this version:
+ * - description and payment_instructions use RichTextEditor (Tiptap WYSIWYG)
+ * - location field shows a Google Maps link when filled in
+ * - edit mode shows a delete button for admins and event organizers
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { RichTextEditor } from "@/components/rich-text-editor";
 import type { EventFormData } from "@/lib/validations/event";
 import type { EventOrganizer } from "@/lib/types/event";
 import {
@@ -30,6 +46,7 @@ import {
   publishEvent,
   cancelEvent,
   completeEvent,
+  deleteEvent,
 } from "@/actions/events";
 import {
   addOrganizer,
@@ -49,7 +66,7 @@ interface EventFormProps {
   eventId?: string;
   // Current list of organizers for the event (edit mode only)
   initialOrganizers?: EventOrganizer[];
-  // Whether the current user is an admin (controls organizer management visibility)
+  // Whether the current user is an admin (controls organizer management and delete button visibility)
   isAdmin?: boolean;
   // Whether the current user is listed as an organizer for this event (controls delete button visibility)
   isOrganizer?: boolean;
@@ -140,11 +157,15 @@ export function EventForm({
   eventId,
   initialOrganizers = [],
   isAdmin = false,
+  isOrganizer = false,
 }: EventFormProps) {
   const router = useRouter();
 
   // Track whether a server action is in flight to disable buttons during submission
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Track whether the delete action is in flight
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Store server-side error messages for display below the action buttons
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -168,6 +189,7 @@ export function EventForm({
     register,
     handleSubmit,
     watch,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -200,10 +222,8 @@ export function EventForm({
   // Watch the status field to conditionally render status-transition buttons
   const currentStatus = watch("status");
 
-  // Controls the description field tab: "edit" shows textarea, "preview" shows rendered text
-  const [descriptionTab, setDescriptionTab] = useState<"edit" | "preview">(
-    "edit",
-  );
+  // Watch the location field to show/hide the Google Maps link
+  const locationValue = watch("location");
 
   /**
    * Handles the main save/create form submission.
@@ -247,7 +267,6 @@ export function EventForm({
 
   /**
    * Handles status transition actions (publish, cancel, complete).
-   * First saves the current form field values, then transitions the status.
    * Called directly from button onClick — not from handleSubmit — because
    * status changes are separate from field edits.
    */
@@ -279,12 +298,34 @@ export function EventForm({
     router.push(`/events/${eventId}`);
   };
 
+  /**
+   * Handles hard-deletion of the event after the user confirms the AlertDialog.
+   * Calls the deleteEvent Server Action (which verifies auth server-side),
+   * then navigates back to the events list on success.
+   */
+  const handleDelete = async () => {
+    if (!eventId) return;
+
+    setIsDeleting(true);
+    setErrorMessage(null);
+
+    const result = await deleteEvent(eventId);
+
+    if (result.error) {
+      setErrorMessage(result.error);
+      setIsDeleting(false);
+      return;
+    }
+
+    // Navigate to the events list after successful deletion
+    router.push("/events");
+  };
+
   // ─── Organizer management handlers ───────────────────────────────────────
 
   /**
    * Called when the user types in the member search input.
    * Fires the searchMembers Server Action and updates the dropdown results.
-   * No debounce — fires on every keystroke for simplicity.
    *
    * @param query - The current value of the search input
    */
@@ -366,41 +407,21 @@ export function EventForm({
           )}
         </div>
 
-        {/* Event description — optional plain text with edit/preview tab toggle */}
+        {/* Event description — WYSIWYG editor (Tiptap) with image/link support */}
         <div className="space-y-1">
           <Label>설명</Label>
-          {/* Tab toggle buttons — type="button" prevents form submission */}
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant={descriptionTab === "edit" ? "default" : "outline"}
-              onClick={() => setDescriptionTab("edit")}
-            >
-              편집
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={descriptionTab === "preview" ? "default" : "outline"}
-              onClick={() => setDescriptionTab("preview")}
-            >
-              미리보기
-            </Button>
-          </div>
-          {descriptionTab === "edit" ? (
-            <Textarea
-              id="description"
-              {...register("description")}
-              placeholder="이벤트 설명을 입력하세요"
-              rows={4}
-            />
-          ) : (
-            /* Preview: display plain text with line breaks preserved */
-            <div className="min-h-[100px] whitespace-pre-wrap rounded-md border p-2 text-sm">
-              {watch("description") || "내용 없음"}
-            </div>
-          )}
+          <Controller
+            name="description"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                placeholder="이벤트 설명을 입력하세요"
+                error={errors.description?.message}
+              />
+            )}
+          />
         </div>
 
         {/* Venue / location — required (min 2 chars) */}
@@ -415,6 +436,17 @@ export function EventForm({
             <p className="text-sm text-destructive">
               {errors.location.message}
             </p>
+          )}
+          {/* Google Maps link — shown when location field is non-empty */}
+          {locationValue && locationValue.length >= 2 && (
+            <a
+              href={`https://maps.google.com/?q=${encodeURIComponent(locationValue)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary underline hover:opacity-80"
+            >
+              구글 맵에서 보기 →
+            </a>
           )}
         </div>
       </section>
@@ -492,14 +524,19 @@ export function EventForm({
           />
         </div>
 
-        {/* Payment instructions — optional */}
+        {/* Payment instructions — WYSIWYG editor with image/link/hyperlink support */}
         <div className="space-y-1">
-          <Label htmlFor="payment_instructions">납부 안내 (선택)</Label>
-          <Textarea
-            id="payment_instructions"
-            {...register("payment_instructions")}
-            placeholder="예: Venmo @kaist-sv 로 송금해주세요"
-            rows={2}
+          <Label>납부 안내 (선택)</Label>
+          <Controller
+            name="payment_instructions"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ""}
+                onChange={field.onChange}
+                placeholder="예: Venmo @kaist-sv 로 송금해주세요"
+              />
+            )}
           />
         </div>
 
@@ -646,6 +683,48 @@ export function EventForm({
                 완료 처리
               </Button>
             )}
+          </>
+        )}
+
+        {/* ─── Delete Event (edit mode, admin or organizer only) ──────────── */}
+        {/* Separated from save/status actions with a visual divider */}
+        {mode === "edit" && (isAdmin || isOrganizer) && (
+          <>
+            <hr className="my-2" />
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="w-full"
+                  disabled={isDeleting}
+                >
+                  이벤트 삭제
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    이벤트를 삭제하시겠습니까?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    이 작업은 되돌릴 수 없습니다. RSVP 데이터를 포함한 모든
+                    이벤트 정보가 영구적으로 삭제됩니다.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>취소</AlertDialogCancel>
+                  {/* Destructive confirm button — disabled while deletion is in flight */}
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={handleDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? "삭제 중..." : "삭제"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </>
         )}
       </div>
