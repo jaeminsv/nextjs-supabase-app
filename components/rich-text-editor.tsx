@@ -26,7 +26,7 @@
  *   />
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -136,6 +136,11 @@ export function RichTextEditor({
   placeholder,
   error,
 }: RichTextEditorProps) {
+  // Generate a unique ID for the color picker label/input pair.
+  // This prevents ID collisions when multiple RichTextEditor instances are
+  // rendered on the same page (e.g., description + payment_instructions).
+  const colorPickerId = useId();
+
   // Tracks whether an image upload is in progress (disables upload buttons)
   const [isUploading, setIsUploading] = useState(false);
   // Holds upload-specific error messages shown below the editor
@@ -308,7 +313,7 @@ export function RichTextEditor({
         {/* Text color picker — native color input styled to match toolbar buttons */}
         <div className="flex items-center gap-1">
           <label
-            htmlFor="text-color-picker"
+            htmlFor={colorPickerId}
             className="flex h-7 cursor-pointer items-center rounded border border-input bg-background px-2 text-xs hover:bg-accent"
             title="글자 색상"
           >
@@ -316,7 +321,7 @@ export function RichTextEditor({
             <span style={{ borderBottom: `3px solid ${currentColor}` }}>A</span>
           </label>
           <input
-            id="text-color-picker"
+            id={colorPickerId}
             type="color"
             value={currentColor}
             onChange={(e) =>
