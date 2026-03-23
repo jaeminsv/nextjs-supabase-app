@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import DOMPurify from "dompurify";
 import { Calendar, Clock, Link2, MapPin, Minus, Plus } from "lucide-react";
 import { submitRsvp } from "@/actions/rsvp";
 import { reportPayment } from "@/actions/payment";
@@ -239,9 +240,14 @@ export function EventDetailClient({
             <span>{event.location}</span>
           </div>
 
-          {/* Long-form description — preserves line breaks entered by the organizer */}
+          {/* Long-form description — rendered as sanitized HTML (supports rich text, links, images) */}
           {event.description && (
-            <p className="whitespace-pre-wrap text-sm">{event.description}</p>
+            <div
+              className="prose prose-sm max-w-none text-sm"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(event.description),
+              }}
+            />
           )}
 
           {/* RSVP deadline — only rendered when the event has a deadline */}
@@ -415,11 +421,14 @@ export function EventDetailClient({
             </div>
           </div>
 
-          {/* Payment instructions provided by the organizer — may be null */}
+          {/* Payment instructions — rendered as sanitized HTML so links are clickable */}
           {event.payment_instructions && (
-            <p className="text-sm text-muted-foreground">
-              {event.payment_instructions}
-            </p>
+            <div
+              className="prose prose-sm max-w-none text-sm text-muted-foreground"
+              dangerouslySetInnerHTML={{
+                __html: DOMPurify.sanitize(event.payment_instructions),
+              }}
+            />
           )}
 
           {/* Payment UI — only rendered for members with rsvpStatus === 'going' */}
