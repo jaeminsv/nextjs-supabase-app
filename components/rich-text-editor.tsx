@@ -5,7 +5,9 @@
  *
  * Features:
  * - Bold, italic, heading, paragraph formatting (via StarterKit)
- * - Hyperlink insertion with URL prompt
+ * - Text color selection (via Color + TextStyle extensions)
+ * - Font size selection (via custom FontSize extension based on TextStyle)
+ * - Hyperlink auto-detection (autolink enabled; manual link button removed)
  * - Image insertion via URL prompt, file picker, or clipboard paste
  * - Image uploads are sent to Supabase Storage via uploadEventImage()
  * - Integrates with React Hook Form via the Controller pattern (not register)
@@ -29,9 +31,79 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Image from "@tiptap/extension-image";
+import { TextStyle } from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import { Extension } from "@tiptap/core";
 import { Button } from "@/components/ui/button";
 import { uploadEventImage } from "@/lib/supabase/storage";
 import { createClient } from "@/lib/supabase/client";
+
+// ─── Custom FontSize Extension ─────────────────────────────────────────────────
+// Tiptap does not ship a first-party font-size package for v3.x, so we build
+// a lightweight extension on top of TextStyle that stores fontSize as an inline
+// CSS style attribute (e.g. style="font-size: 18px").
+
+const FontSize = Extension.create({
+  name: "fontSize",
+
+  addOptions() {
+    return {
+      types: ["textStyle"],
+    };
+  },
+
+  addGlobalAttributes() {
+    return [
+      {
+        // Attach the fontSize attribute to textStyle marks
+        types: this.options.types,
+        attributes: {
+          fontSize: {
+            default: null,
+            // Render as inline CSS when the editor outputs HTML
+            renderHTML: (attributes) => {
+              if (!attributes.fontSize) return {};
+              return { style: `font-size: ${attributes.fontSize}` };
+            },
+            // Parse the inline style back to the attribute when loading HTML
+            parseHTML: (element) => element.style.fontSize || null,
+          },
+        },
+      },
+    ];
+  },
+
+  addCommands() {
+    return {
+      // setFontSize applies the given size string (e.g. "18px") to the selection
+      setFontSize:
+        (fontSize: string) =>
+        ({ chain }) => {
+          return chain().setMark("textStyle", { fontSize }).run();
+        },
+      // unsetFontSize removes the fontSize attribute from the selection
+      unsetFontSize:
+        () =>
+        ({ chain }) => {
+          return chain()
+            .setMark("textStyle", { fontSize: null })
+            .removeEmptyTextStyle()
+            .run();
+        },
+    };
+  },
+});
+
+// ─── Font size options shown in the toolbar dropdown ───────────────────────────
+const FONT_SIZE_OPTIONS = [
+  { label: "12px", value: "12px" },
+  { label: "14px", value: "14px" },
+  { label: "16px", value: "16px" },
+  { label: "18px", value: "18px" },
+  { label: "20px", value: "20px" },
+  { label: "24px", value: "24px" },
+  { label: "32px", value: "32px" },
+];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +116,16 @@ interface RichTextEditorProps {
   placeholder?: string;
   // Optional error message displayed below the editor
   error?: string;
+}
+
+// Extend the Tiptap Commands interface so TypeScript knows about our custom commands
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    fontSize: {
+      setFontSize: (fontSize: string) => ReturnType;
+      unsetFontSize: () => ReturnType;
+    };
+  }
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -67,10 +149,18 @@ export function RichTextEditor({
     extensions: [
       // StarterKit includes: Bold, Italic, Heading, Paragraph, BulletList, OrderedList, etc.
       StarterKit,
-      // Link extension: openOnClick=false so links don't navigate away while editing
-      Link.configure({ openOnClick: false }),
+      // Link extension: autolink=true auto-detects URLs as links; openOnClick=false
+      // prevents navigation while editing. The manual "링크" button has been removed
+      // since URLs are automatically converted to clickable links.
+      Link.configure({ openOnClick: false, autolink: true }),
       // Image extension: allows inserting <img> nodes via setImage command
       Image,
+      // TextStyle: base mark required by Color and FontSize extensions
+      TextStyle,
+      // Color: adds setColor / unsetColor commands that apply color via TextStyle
+      Color,
+      // FontSize: custom extension (defined above) for changing font size
+      FontSize,
     ],
     // Set initial content from the controlled value prop
     content: value,
@@ -135,14 +225,6 @@ export function RichTextEditor({
 
   // ─── Toolbar Handlers ───────────────────────────────────────────────────────
 
-  /** Prompt the user for a URL and insert a hyperlink at the current selection */
-  const handleLinkInsert = () => {
-    if (!editor) return;
-    const url = prompt("링크 URL을 입력하세요:", "https://");
-    if (!url) return;
-    editor.chain().focus().setLink({ href: url }).run();
-  };
-
   /** Prompt the user for an image URL and insert it as an <img> node */
   const handleImageUrl = () => {
     if (!editor) return;
@@ -185,6 +267,15 @@ export function RichTextEditor({
   // Guard: Tiptap returns null during SSR — render nothing until hydrated
   if (!editor) return null;
 
+  // Read the current text color from the editor selection (falls back to black)
+  const currentColor =
+    (editor.getAttributes("textStyle").color as string | undefined) ??
+    "#000000";
+
+  // Read the current font size from the editor selection (falls back to empty = default)
+  const currentFontSize =
+    (editor.getAttributes("textStyle").fontSize as string | undefined) ?? "";
+
   return (
     <div className="space-y-1">
       {/* ─── Toolbar ────────────────────────────────────────────────────── */}
@@ -211,16 +302,51 @@ export function RichTextEditor({
           I
         </Button>
 
-        {/* Link insertion */}
-        <Button
-          type="button"
-          size="sm"
-          variant={editor.isActive("link") ? "default" : "outline"}
-          onClick={handleLinkInsert}
-          className="h-7 px-2 text-xs"
+        {/* Divider */}
+        <div className="mx-1 h-7 w-px bg-border" />
+
+        {/* Text color picker — native color input styled to match toolbar buttons */}
+        <div className="flex items-center gap-1">
+          <label
+            htmlFor="text-color-picker"
+            className="flex h-7 cursor-pointer items-center rounded border border-input bg-background px-2 text-xs hover:bg-accent"
+            title="글자 색상"
+          >
+            {/* "A" with a colored underline to indicate the current color */}
+            <span style={{ borderBottom: `3px solid ${currentColor}` }}>A</span>
+          </label>
+          <input
+            id="text-color-picker"
+            type="color"
+            value={currentColor}
+            onChange={(e) =>
+              editor.chain().focus().setColor(e.target.value).run()
+            }
+            className="sr-only"
+          />
+        </div>
+
+        {/* Font size selector dropdown */}
+        <select
+          value={currentFontSize}
+          onChange={(e) => {
+            const size = e.target.value;
+            if (size) {
+              editor.chain().focus().setFontSize(size).run();
+            } else {
+              editor.chain().focus().unsetFontSize().run();
+            }
+          }}
+          className="h-7 rounded border border-input bg-background px-1 text-xs focus:outline-none"
+          title="글자 크기"
         >
-          링크
-        </Button>
+          <option value="">크기</option>
+          {FONT_SIZE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
 
         {/* Divider */}
         <div className="mx-1 h-7 w-px bg-border" />
