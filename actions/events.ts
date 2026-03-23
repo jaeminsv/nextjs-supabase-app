@@ -318,15 +318,24 @@ export async function deleteEvent(
   }
 
   // Hard-delete the event row — FK ON DELETE CASCADE removes related rows
-  // (rsvps, event_organizers) automatically in the DB schema
-  const { error: deleteError } = await supabase
+  // (rsvps, event_organizers) automatically in the DB schema.
+  // Use .select() to verify a row was actually deleted; RLS misconfiguration
+  // can cause delete() to silently return no error but affect 0 rows.
+  const { data: deletedRows, error: deleteError } = await supabase
     .from("events")
     .delete()
-    .eq("id", eventId);
+    .eq("id", eventId)
+    .select("id");
 
   if (deleteError) {
     console.error("deleteEvent error:", deleteError);
     return { error: "이벤트 삭제에 실패했습니다." };
+  }
+
+  // If no rows were returned, the delete was silently blocked (e.g. RLS policy missing)
+  if (!deletedRows || deletedRows.length === 0) {
+    console.error("deleteEvent: no rows deleted — RLS policy may be missing");
+    return { error: "이벤트 삭제에 실패했습니다. 권한을 확인해주세요." };
   }
 
   // Revalidate events list so the deleted event no longer appears
