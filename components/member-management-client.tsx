@@ -198,6 +198,23 @@ export function MemberManagementClient({
 }: MemberManagementClientProps) {
   // Track which tab is currently active: pending approvals or all members
   const [activeTab, setActiveTab] = useState<"pending" | "all">("pending");
+  // Prevents duplicate PDF downloads when the button is clicked rapidly
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  /**
+   * Generates and downloads a PDF of all members.
+   * Uses dynamic import so jsPDF is not included in the initial page bundle.
+   */
+  const handleDownloadPdf = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const { generateMemberListPdf } = await import("@/lib/utils/pdf");
+      await generateMemberListPdf(profiles);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // Split profiles into two groups based on role
   const pendingMembers = profiles.filter((p) => p.role === "pending");
@@ -205,8 +222,18 @@ export function MemberManagementClient({
 
   return (
     <div className="relative min-h-full">
-      {/* Page title */}
-      <h1 className="px-4 pt-4 text-2xl font-bold">회원 관리</h1>
+      {/* Page title row — title on left, PDF download button on right */}
+      <div className="flex items-center justify-between px-4 pt-4">
+        <h1 className="text-2xl font-bold">회원 관리</h1>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDownloadPdf}
+          disabled={isDownloading}
+        >
+          {isDownloading ? "생성 중..." : "PDF 다운로드"}
+        </Button>
+      </div>
 
       {/* Tab toggle — switches between pending approvals and all members */}
       <div role="tablist" className="mt-4 flex border-b">

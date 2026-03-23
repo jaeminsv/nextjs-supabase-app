@@ -51,6 +51,24 @@ export function ManageEventClient({
   // Tracks the payment ID currently being processed (null = no action in progress).
   // Disables all confirm/reject buttons while one request is pending to prevent double-submit.
   const [loadingPaymentId, setLoadingPaymentId] = useState<string | null>(null);
+  // Prevents duplicate PDF downloads when the button is clicked rapidly
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  /**
+   * Generates and downloads a PDF of all attendees for this event.
+   * Uses dynamic import so jsPDF is not included in the initial page bundle.
+   * Only available to admins (isAdmin gate is applied in the JSX).
+   */
+  const handleDownloadPdf = async () => {
+    if (isDownloading) return;
+    setIsDownloading(true);
+    try {
+      const { generateAttendeeListPdf } = await import("@/lib/utils/pdf");
+      await generateAttendeeListPdf(attendees, event.title);
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   // ─── Stats calculation ─────────────────────────────────────────────────────
 
@@ -128,10 +146,24 @@ export function ManageEventClient({
 
   return (
     <div className="pb-20">
-      {/* ─── Summary Stats Banner ──────────────────────────────────────────── */}
-      <div className="m-4 rounded-lg bg-muted p-3 text-sm font-medium">
-        {confirmedCount}/{goingCount}명 납부 완료 &middot; ${collectedAmount} /{" "}
-        ${totalAmount} 수금
+      {/* ─── Summary Stats Banner + PDF button (admin only) ───────────────── */}
+      <div className="m-4 flex items-center gap-2">
+        <div className="flex-1 rounded-lg bg-muted p-3 text-sm font-medium">
+          {confirmedCount}/{goingCount}명 납부 완료 &middot; ${collectedAmount}{" "}
+          / ${totalAmount} 수금
+        </div>
+        {/* PDF download button — only shown to admins to avoid data leakage */}
+        {isAdmin && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPdf}
+            disabled={isDownloading}
+            className="shrink-0"
+          >
+            {isDownloading ? "생성 중..." : "참가자 PDF"}
+          </Button>
+        )}
       </div>
 
       {/* ─── Filter Tabs ──────────────────────────────────────────────────── */}
@@ -180,6 +212,15 @@ export function ManageEventClient({
                     납부방법: {payment.method}
                   </span>
                   <RsvpStatusBadge status={rsvp.status} />
+                </div>
+              )}
+
+              {/* Message to organizers — only visible to admins, shown when the member
+                  left a note during RSVP submission. Hidden from non-admin organizers. */}
+              {isAdmin && rsvp.message_to_organizer && (
+                <div className="rounded bg-muted/50 px-2 py-1 text-xs text-muted-foreground">
+                  <span className="font-medium">메시지: </span>
+                  {rsvp.message_to_organizer}
                 </div>
               )}
 
