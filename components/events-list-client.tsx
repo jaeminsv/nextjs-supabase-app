@@ -15,19 +15,23 @@ import { EventCard } from "@/components/event-card";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import type { Event } from "@/lib/types/event";
+import type { Rsvp } from "@/lib/types/rsvp";
 
 interface EventsListClientProps {
   // Pre-fetched list of upcoming published events (start_at > now, status='published')
   upcomingEvents: Event[];
   // Pre-fetched list of past events (status in completed, cancelled)
   pastEvents: Event[];
-  // The currently authenticated user's ID — reserved for future RSVP lookup (Task 013)
+  // The currently authenticated user's ID
   currentUserId: string;
+  // Map of eventId → Rsvp for the current user, used to display RSVP status badges
+  rsvpMap: Record<string, Rsvp>;
 }
 
 export function EventsListClient({
   upcomingEvents,
   pastEvents,
+  rsvpMap,
 }: EventsListClientProps) {
   // Track which tab is currently active: upcoming or past events
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
@@ -73,8 +77,9 @@ export function EventsListClient({
             <EventCard
               key={event.id}
               event={event}
-              // userRsvpStatus and rsvpCount will be wired in Task 013
-              userRsvpStatus={undefined}
+              // Look up the current user's RSVP status for this event from the pre-fetched map.
+              // Falls back to undefined (shows '미응답') if no RSVP record exists.
+              userRsvpStatus={rsvpMap[event.id]?.status ?? undefined}
               rsvpCount={0}
             />
           ))

@@ -3,8 +3,13 @@
 
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
-import { getUpcomingEvents, getPastEvents } from "@/lib/queries/events";
+import {
+  getUpcomingEvents,
+  getPastEvents,
+  getUserRsvpsForEvents,
+} from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
+import type { Rsvp } from "@/lib/types/rsvp";
 
 // Dynamic import splits EventsListClient into its own JS chunk.
 // This reduces the initial bundle size because the component code is only
@@ -30,11 +35,23 @@ async function EventsContent() {
   const { data: claimsData } = await supabase.auth.getClaims();
   const currentUserId = claimsData?.claims?.sub ?? "";
 
+  // Collect all event IDs from both tabs so we can fetch RSVP statuses in one query.
+  // This avoids N+1 queries and allows EventCard to show the correct RSVP badge.
+  const allEventIds = [
+    ...upcomingEvents.map((e) => e.id),
+    ...pastEvents.map((e) => e.id),
+  ];
+  const rsvpMap: Record<string, Rsvp> =
+    currentUserId && allEventIds.length > 0
+      ? await getUserRsvpsForEvents(allEventIds)
+      : {};
+
   return (
     <EventsListClient
       upcomingEvents={upcomingEvents}
       pastEvents={pastEvents}
       currentUserId={currentUserId}
+      rsvpMap={rsvpMap}
     />
   );
 }
