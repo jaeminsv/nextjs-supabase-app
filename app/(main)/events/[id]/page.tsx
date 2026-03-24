@@ -8,10 +8,11 @@ import {
   getEventById,
   getMyRsvpForEvent,
   getMyPaymentForEvent,
+  getConfirmedAttendeeProfiles,
 } from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
 
-import type { AttendeeProfile } from "@/lib/types/attendee";
+import type { AttendeeProfile, RosterAccess } from "@/lib/types/attendee";
 
 // Dynamic import splits EventDetailClient into its own JS chunk.
 // The detail page contains rich interactive UI (RSVP, payment forms) that
@@ -68,27 +69,54 @@ async function EventDetailContent({ params }: PageProps) {
     ? organizers.some((o) => o.user_id === userId)
     : false;
 
-  // Determine if the current user is allowed to see the attendee list.
-  // Access is granted to: members who responded 'going', admins, and organizers.
-  const canSeeAttendees =
-    initialRsvp?.status === "going" || isAdmin || isOrganizer;
+  // Determine roster access level for the current viewer.
+  // "visible" — full attendee list shown
+  // "pending" — section shown with "awaiting payment confirmation" message
+  // "hidden"  — section not rendered at all
+  //
+  // Free events (fee_amount === 0): any going RSVP can see the list.
+  // Paid events: only confirmed payers (and admins/organizers) can see the list.
+  //
+  // Note: hasPendingPayment relies on getMyPaymentForEvent excluding "rejected"
+  // records. That function filters to ["pending", "confirmed"] only.
+  // If that contract changes, this logic must be updated accordingly.
+  const isFreeEvent = event.fee_amount === 0;
+  const hasConfirmedPayment = initialPayment?.status === "confirmed";
+  const hasPendingPayment = initialPayment?.status === "pending";
+  const isGoing = initialRsvp?.status === "going";
 
-  // Only fetch attendee profiles when the user has permission to view the list.
-  // This avoids an unnecessary DB round-trip for users who cannot see the section.
+  let rosterAccess: RosterAccess = "hidden";
+  if (isAdmin || isOrganizer) {
+    rosterAccess = "visible";
+  } else if (isFreeEvent && isGoing) {
+    rosterAccess = "visible";
+  } else if (hasConfirmedPayment) {
+    rosterAccess = "visible";
+  } else if (hasPendingPayment) {
+    rosterAccess = "pending";
+  }
+
+  // Only fetch attendee profiles when the viewer has full access.
+  // This avoids an unnecessary DB round-trip for restricted viewers.
   let attendeeProfiles: AttendeeProfile[] = [];
-  if (canSeeAttendees) {
-    const { data: goingRsvps } = await supabase
-      .from("rsvps")
-      .select(
-        "profile:profiles(id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, company, job_title)",
-      )
-      .eq("event_id", id)
-      .eq("status", "going");
+  if (rosterAccess === "visible") {
+    if (isFreeEvent) {
+      // Free events: show all going RSVPs
+      const { data: goingRsvps } = await supabase
+        .from("rsvps")
+        .select(
+          "profile:profiles(id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, company, job_title)",
+        )
+        .eq("event_id", id)
+        .eq("status", "going");
 
-    // Flatten the nested profile objects, filtering out any rows with no profile data
-    attendeeProfiles = (goingRsvps ?? []).flatMap((r) =>
-      r.profile ? [r.profile as unknown as AttendeeProfile] : [],
-    );
+      attendeeProfiles = (goingRsvps ?? []).flatMap((r) =>
+        r.profile ? [r.profile as unknown as AttendeeProfile] : [],
+      );
+    } else {
+      // Paid events: show only attendees with confirmed payment
+      attendeeProfiles = await getConfirmedAttendeeProfiles(id);
+    }
   }
 
   return (
@@ -99,6 +127,7 @@ async function EventDetailContent({ params }: PageProps) {
       isAdmin={isAdmin}
       isOrganizer={isOrganizer}
       attendeeProfiles={attendeeProfiles}
+      rosterAccess={rosterAccess}
     />
   );
 }

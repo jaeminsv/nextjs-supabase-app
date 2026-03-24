@@ -30,7 +30,7 @@ import {
 import type { Event } from "@/lib/types/event";
 import type { Rsvp, RsvpStatus } from "@/lib/types/rsvp";
 import type { Payment, PaymentMethod } from "@/lib/types/payment";
-import type { AttendeeProfile } from "@/lib/types/attendee";
+import type { AttendeeProfile, RosterAccess } from "@/lib/types/attendee";
 
 interface EventDetailClientProps {
   event: Event;
@@ -42,8 +42,10 @@ interface EventDetailClientProps {
   isAdmin: boolean;
   // Whether the current user is listed as an organizer for this specific event
   isOrganizer: boolean;
-  // Profiles of all going attendees — only populated when the user has permission to see the list
+  // Profiles of attendees eligible for display — population depends on rosterAccess and event type
   attendeeProfiles?: AttendeeProfile[];
+  // Controls how the attendee roster section is rendered for this viewer
+  rosterAccess: RosterAccess;
 }
 
 export function EventDetailClient({
@@ -53,6 +55,7 @@ export function EventDetailClient({
   isAdmin,
   isOrganizer,
   attendeeProfiles,
+  rosterAccess,
 }: EventDetailClientProps) {
   // RSVP state — initialized from existing RSVP if available
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus | undefined>(
@@ -590,8 +593,20 @@ export function EventDetailClient({
         </section>
 
         {/* === Attendee List Section === */}
-        {/* Visible only to: members who responded 'going', admins, and organizers */}
-        {(initialRsvp?.status === "going" || isAdmin || isOrganizer) &&
+        {/* "hidden": render nothing (non-going, unpaid, or rejected payment) */}
+
+        {/* "pending": section is visible but list is locked until payment is confirmed */}
+        {rosterAccess === "pending" && (
+          <section className="space-y-2 rounded-lg border p-4">
+            <h2 className="text-base font-semibold">참가자 명단</h2>
+            <p className="text-sm text-muted-foreground">
+              납부 확인 후 명단이 공개됩니다.
+            </p>
+          </section>
+        )}
+
+        {/* "visible": full attendee list — only rendered when there are attendees to show */}
+        {rosterAccess === "visible" &&
           attendeeProfiles &&
           attendeeProfiles.length > 0 && (
             <section className="space-y-2 rounded-lg border p-4">
