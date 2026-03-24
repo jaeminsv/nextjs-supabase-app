@@ -9,7 +9,11 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { AlertCircle, CalendarX } from "lucide-react";
-import { getUpcomingEvents, getUserRsvpsForEvents } from "@/lib/queries/events";
+import {
+  getUpcomingEvents,
+  getUserRsvpsForEvents,
+  getRsvpCountsForEvents,
+} from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
 import { EventCard } from "@/components/event-card";
 import { EmptyState } from "@/components/empty-state";
@@ -49,10 +53,15 @@ async function DashboardContent() {
   // Fetch the current user's RSVPs for all visible events in a single query.
   // This gives us a map of { eventId -> Rsvp } for O(1) badge lookups below.
   const eventIds = upcomingEvents.map((e) => e.id);
-  const rsvpMap = await getUserRsvpsForEvents(eventIds);
 
-  // Payment/RSVP counts will be wired up in Task 014.
-  // For now, the unpaid banner is hidden (unpaidCount = 0).
+  // Fetch both the user's own RSVP statuses and the going-count per event
+  // in parallel to minimise total server latency.
+  const [rsvpMap, rsvpCountMap] = await Promise.all([
+    getUserRsvpsForEvents(eventIds),
+    getRsvpCountsForEvents(eventIds),
+  ]);
+
+  // Unpaid banner is hidden for now (unpaidCount = 0).
   const unpaidCount = 0;
 
   return (
@@ -93,7 +102,7 @@ async function DashboardContent() {
                 // Look up the user's RSVP status for this specific event from the map.
                 // undefined means the user hasn't responded yet (no badge shown).
                 userRsvpStatus={rsvpMap[event.id]?.status ?? undefined}
-                rsvpCount={0}
+                rsvpCount={rsvpCountMap[event.id] ?? 0}
               />
             ))}
           </div>

@@ -7,6 +7,7 @@ import {
   getUpcomingEvents,
   getPastEvents,
   getUserRsvpsForEvents,
+  getRsvpCountsForEvents,
 } from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
 import type { Rsvp } from "@/lib/types/rsvp";
@@ -35,16 +36,23 @@ async function EventsContent() {
   const { data: claimsData } = await supabase.auth.getClaims();
   const currentUserId = claimsData?.claims?.sub ?? "";
 
-  // Collect all event IDs from both tabs so we can fetch RSVP statuses in one query.
-  // This avoids N+1 queries and allows EventCard to show the correct RSVP badge.
+  // Collect all event IDs from both tabs so we can fetch RSVP data in one pass.
+  // This avoids N+1 queries and allows EventCard to show the correct RSVP badge
+  // and attendee count.
   const allEventIds = [
     ...upcomingEvents.map((e) => e.id),
     ...pastEvents.map((e) => e.id),
   ];
-  const rsvpMap: Record<string, Rsvp> =
+
+  // Fetch both the user's RSVP status badges and the going-count map in parallel.
+  const [rsvpMap, rsvpCountMap] = await Promise.all([
     currentUserId && allEventIds.length > 0
-      ? await getUserRsvpsForEvents(allEventIds)
-      : {};
+      ? getUserRsvpsForEvents(allEventIds)
+      : ({} as Record<string, Rsvp>),
+    allEventIds.length > 0
+      ? getRsvpCountsForEvents(allEventIds)
+      : ({} as Record<string, number>),
+  ]);
 
   return (
     <EventsListClient
@@ -52,6 +60,7 @@ async function EventsContent() {
       pastEvents={pastEvents}
       currentUserId={currentUserId}
       rsvpMap={rsvpMap}
+      rsvpCountMap={rsvpCountMap}
     />
   );
 }

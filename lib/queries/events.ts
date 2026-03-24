@@ -290,6 +290,54 @@ export async function getMyPaymentForEvent(
 }
 
 /**
+ * Fetches the count of 'going' RSVPs for multiple events in a single query.
+ *
+ * Returns a map of { [eventId]: goingCount } so EventCard can display the
+ * correct attendee number without making N separate queries.
+ *
+ * Requires the `members_select_event_rsvps` RLS policy (added in migration
+ * 20260324000004) which allows authenticated members to read RSVPs for
+ * published events.
+ *
+ * @param eventIds - Array of event UUIDs to count going RSVPs for
+ * @returns A map of { [eventId]: count } — missing keys mean 0 attendees.
+ *          Returns an empty object if the input array is empty or on error.
+ */
+export async function getRsvpCountsForEvents(
+  eventIds: string[],
+): Promise<Record<string, number>> {
+  // Avoid an unnecessary DB round-trip when the caller passes no event IDs
+  if (eventIds.length === 0) return {};
+
+  try {
+    const supabase = await createClient();
+
+    // Fetch only the event_id column for all 'going' RSVPs across the
+    // requested events. We only need the IDs to build the count map.
+    const { data, error } = await supabase
+      .from("rsvps")
+      .select("event_id")
+      .eq("status", "going")
+      .in("event_id", eventIds);
+
+    if (error) {
+      console.error("getRsvpCountsForEvents error:", error);
+      return {};
+    }
+
+    // Reduce the flat list of rows into a { eventId: count } map.
+    // acc[rsvp.event_id] starts at undefined, so ?? 0 initialises it safely.
+    return (data ?? []).reduce<Record<string, number>>((acc, rsvp) => {
+      acc[rsvp.event_id] = (acc[rsvp.event_id] ?? 0) + 1;
+      return acc;
+    }, {});
+  } catch (err) {
+    console.error("getRsvpCountsForEvents unexpected error:", err);
+    return {};
+  }
+}
+
+/**
  * Returns profiles of attendees who have a confirmed payment for the given event.
  *
  * Used for paid events (fee_amount > 0) to populate the attendee roster.

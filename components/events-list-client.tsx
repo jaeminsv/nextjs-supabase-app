@@ -26,12 +26,15 @@ interface EventsListClientProps {
   currentUserId: string;
   // Map of eventId → Rsvp for the current user, used to display RSVP status badges
   rsvpMap: Record<string, Rsvp>;
+  // Map of eventId → going RSVP count, used to display attendee numbers on EventCard
+  rsvpCountMap: Record<string, number>;
 }
 
 export function EventsListClient({
   upcomingEvents,
   pastEvents,
   rsvpMap,
+  rsvpCountMap,
 }: EventsListClientProps) {
   // Track which tab is currently active: upcoming or past events
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
@@ -80,7 +83,7 @@ export function EventsListClient({
               // Look up the current user's RSVP status for this event from the pre-fetched map.
               // Falls back to undefined (shows '미응답') if no RSVP record exists.
               userRsvpStatus={rsvpMap[event.id]?.status ?? undefined}
-              rsvpCount={0}
+              rsvpCount={rsvpCountMap[event.id] ?? 0}
             />
           ))
         ) : (
