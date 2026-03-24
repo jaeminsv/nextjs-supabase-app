@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Event, EventOrganizer } from "@/lib/types/event";
 import type { Rsvp } from "@/lib/types/rsvp";
 import type { Payment } from "@/lib/types/payment";
+import type { AttendeeProfile } from "@/lib/types/attendee";
 
 /**
  * Returns upcoming published events sorted by start date (soonest first).
@@ -285,5 +286,46 @@ export async function getMyPaymentForEvent(
   } catch (err) {
     console.error("getMyPaymentForEvent unexpected error:", err);
     return null;
+  }
+}
+
+/**
+ * Returns profiles of attendees who have a confirmed payment for the given event.
+ *
+ * Used for paid events (fee_amount > 0) to populate the attendee roster.
+ * Queries the payments table filtered by status = "confirmed",
+ * then joins profiles directly via user_id (no rsvps join needed).
+ *
+ * @param eventId - UUID of the event to fetch confirmed attendees for
+ * @returns Array of AttendeeProfile objects, or empty array on error
+ */
+export async function getConfirmedAttendeeProfiles(
+  eventId: string,
+): Promise<AttendeeProfile[]> {
+  try {
+    const supabase = await createClient();
+
+    // Fetch payments with status "confirmed" for this event,
+    // and join the profile fields we need for the roster display.
+    const { data, error } = await supabase
+      .from("payments")
+      .select(
+        "profile:profiles(id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, company, job_title)",
+      )
+      .eq("event_id", eventId)
+      .eq("status", "confirmed");
+
+    if (error) {
+      console.error("getConfirmedAttendeeProfiles error:", error);
+      return [];
+    }
+
+    // Flatten the nested profile objects, filtering out any rows with no profile data
+    return (data ?? []).flatMap((r) =>
+      r.profile ? [r.profile as unknown as AttendeeProfile] : [],
+    );
+  } catch (err) {
+    console.error("getConfirmedAttendeeProfiles unexpected error:", err);
+    return [];
   }
 }
