@@ -300,7 +300,9 @@ export async function getMyPaymentForEvent(
  * published events.
  *
  * @param eventIds - Array of event UUIDs to count going RSVPs for
- * @returns A map of { [eventId]: count } — missing keys mean 0 attendees.
+ * @returns A map of { [eventId]: totalHeadcount } where headcount includes the
+ *          primary attendee plus adult_guests, child_guests_with_meal, and
+ *          child_guests_no_meal. Missing keys mean 0 attendees.
  *          Returns an empty object if the input array is empty or on error.
  */
 export async function getRsvpCountsForEvents(
@@ -312,11 +314,13 @@ export async function getRsvpCountsForEvents(
   try {
     const supabase = await createClient();
 
-    // Fetch only the event_id column for all 'going' RSVPs across the
-    // requested events. We only need the IDs to build the count map.
+    // Fetch guest columns in addition to event_id so we can compute total
+    // headcount per RSVP (primary attendee + adult guests + child guests).
     const { data, error } = await supabase
       .from("rsvps")
-      .select("event_id")
+      .select(
+        "event_id, adult_guests, child_guests_with_meal, child_guests_no_meal",
+      )
       .eq("status", "going")
       .in("event_id", eventIds);
 
@@ -325,10 +329,17 @@ export async function getRsvpCountsForEvents(
       return {};
     }
 
-    // Reduce the flat list of rows into a { eventId: count } map.
-    // acc[rsvp.event_id] starts at undefined, so ?? 0 initialises it safely.
+    // Reduce the flat list of rows into a { eventId: totalHeadcount } map.
+    // Each row contributes: 1 (primary) + adult_guests + child_guests_with_meal
+    // + child_guests_no_meal. The ?? 0 guard handles unexpected nulls safely
+    // even though the columns are defined as NOT NULL DEFAULT 0.
     return (data ?? []).reduce<Record<string, number>>((acc, rsvp) => {
-      acc[rsvp.event_id] = (acc[rsvp.event_id] ?? 0) + 1;
+      const headcount =
+        1 +
+        (rsvp.adult_guests ?? 0) +
+        (rsvp.child_guests_with_meal ?? 0) +
+        (rsvp.child_guests_no_meal ?? 0);
+      acc[rsvp.event_id] = (acc[rsvp.event_id] ?? 0) + headcount;
       return acc;
     }, {});
   } catch (err) {
