@@ -605,12 +605,13 @@ export function EventDetailClient({
           </section>
         )}
 
-        {/* "visible": full attendee list — only rendered when there are attendees to show */}
-        {rosterAccess === "visible" &&
-          attendeeProfiles &&
-          attendeeProfiles.length > 0 && (
-            <section className="space-y-2 rounded-lg border p-4">
-              <h2 className="text-base font-semibold">참가자 명단</h2>
+        {/* "visible": full attendee list — always rendered when access is granted.
+            Shows an empty-state message when no confirmed attendees exist yet,
+            so the user knows they have access rather than seeing nothing at all. */}
+        {rosterAccess === "visible" && (
+          <section className="space-y-2 rounded-lg border p-4">
+            <h2 className="text-base font-semibold">참가자 명단</h2>
+            {attendeeProfiles && attendeeProfiles.length > 0 ? (
               <ul className="space-y-2">
                 {attendeeProfiles.map((profile) => {
                   // Build KAIST graduation year string from whichever degrees are available
@@ -656,8 +657,14 @@ export function EventDetailClient({
                   );
                 })}
               </ul>
-            </section>
-          )}
+            ) : (
+              // No confirmed attendees yet — show a friendly empty state
+              <p className="text-sm text-muted-foreground">
+                아직 참가 확정 인원이 없습니다.
+              </p>
+            )}
+          </section>
+        )}
 
         {/* === Payment Method Sheet === */}
         {/* Slides up from the bottom for mobile-friendly payment method selection */}
