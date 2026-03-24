@@ -6,8 +6,9 @@
  * These actions run on the server and are called from Client Components.
  * They handle Supabase mutations on the profiles table for member lifecycle:
  *   - approveMember: pending → member
- *   - rejectMember:  delete profile row (does NOT delete auth user)
+ *   - rejectMember:  delete profile row for pending members (does NOT delete auth user)
  *   - promoteToAdmin: member → admin
+ *   - deleteMember:  permanently delete any member's profile row (no role restriction)
  *
  * IMPORTANT: rejectMember only deletes the profiles row, not the auth.users row.
  * Deleting auth users requires the Supabase Admin API (service_role key),
