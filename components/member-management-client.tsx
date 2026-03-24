@@ -91,6 +91,9 @@ function buildEducationSummary(profile: Profile): string {
  * both disabled while the server action is in-flight (isPending=true).
  * This prevents the dialog from closing mid-flight, which would create
  * a confusing UI where the spinner is visible but the dialog has disappeared.
+ *
+ * Also blocks Escape key and outside-click dismissal while isPending is true,
+ * so the admin cannot accidentally close a dialog during a server round-trip.
  */
 interface DeleteConfirmDialogProps {
   /** Label shown on the trigger button (e.g. "반려", "삭제") */
@@ -105,6 +108,8 @@ interface DeleteConfirmDialogProps {
   onConfirm: () => void;
   /** When true, disables both the trigger button and the cancel button */
   isPending: boolean;
+  /** Visual style of the confirm button inside the dialog. Defaults to triggerVariant. */
+  confirmVariant?: React.ComponentProps<typeof Button>["variant"];
 }
 
 function DeleteConfirmDialog({
@@ -114,6 +119,7 @@ function DeleteConfirmDialog({
   description,
   onConfirm,
   isPending,
+  confirmVariant = triggerVariant,
 }: DeleteConfirmDialogProps) {
   return (
     <AlertDialog>
@@ -124,7 +130,18 @@ function DeleteConfirmDialog({
         </Button>
       </AlertDialogTrigger>
 
-      <AlertDialogContent>
+      {/*
+       * Prevent Escape key from closing the dialog while a server action is
+       * in-flight. Without this guard, pressing Escape mid-request would dismiss
+       * the dialog and leave the admin without feedback on the pending operation.
+       *
+       * Note: AlertDialog.Content (unlike Dialog.Content) does not support
+       * onPointerDownOutside because the spec intentionally prevents outside-click
+       * dismissal — no extra handler is needed for that case.
+       */}
+      <AlertDialogContent
+        onEscapeKeyDown={isPending ? (e) => e.preventDefault() : undefined}
+      >
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
@@ -133,7 +150,15 @@ function DeleteConfirmDialog({
         <AlertDialogFooter>
           {/* Cancel is also disabled while in-flight to prevent closing mid-request */}
           <AlertDialogCancel disabled={isPending}>취소</AlertDialogCancel>
-          <AlertDialogAction onClick={onConfirm} disabled={isPending}>
+          {/*
+           * This project's AlertDialogAction wraps Button with asChild, so it
+           * accepts a variant prop directly — no className workaround needed.
+           */}
+          <AlertDialogAction
+            onClick={onConfirm}
+            disabled={isPending}
+            variant={confirmVariant}
+          >
             확인
           </AlertDialogAction>
         </AlertDialogFooter>
@@ -206,6 +231,7 @@ function PendingCard({ profile }: { profile: Profile }) {
         <DeleteConfirmDialog
           triggerLabel="반려"
           triggerVariant="outline"
+          confirmVariant="outline"
           title="반려 확인"
           description="이 회원 신청을 반려하시겠습니까? 이 작업은 되돌릴 수 없습니다."
           onConfirm={handleReject}
@@ -284,6 +310,7 @@ function MemberCard({ profile }: { profile: Profile }) {
         <DeleteConfirmDialog
           triggerLabel="삭제"
           triggerVariant="destructive"
+          confirmVariant="destructive"
           title="회원 삭제"
           description={`${profile.display_name}님을 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
           onConfirm={handleDelete}
