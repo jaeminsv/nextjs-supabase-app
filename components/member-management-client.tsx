@@ -14,7 +14,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/user-avatar";
 import { EmptyState } from "@/components/empty-state";
-import { approveMember, rejectMember, promoteToAdmin } from "@/actions/members";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  approveMember,
+  rejectMember,
+  promoteToAdmin,
+  deleteMember,
+} from "@/actions/members";
 import type { Profile, ProfileRole } from "@/lib/types/profile";
 
 // ─── Role Badge ─────────────────────────────────────────────────────────────
@@ -66,15 +82,75 @@ function buildEducationSummary(profile: Profile): string {
   return parts.join(" · ");
 }
 
+// ─── Delete Confirm Dialog ────────────────────────────────────────────────────
+
+/**
+ * Reusable confirmation dialog for destructive delete/reject actions.
+ *
+ * Wraps shadcn/ui AlertDialog so the trigger button and cancel button are
+ * both disabled while the server action is in-flight (isPending=true).
+ * This prevents the dialog from closing mid-flight, which would create
+ * a confusing UI where the spinner is visible but the dialog has disappeared.
+ */
+interface DeleteConfirmDialogProps {
+  /** Label shown on the trigger button (e.g. "반려", "삭제") */
+  triggerLabel: string;
+  /** Visual style of the trigger button */
+  triggerVariant?: React.ComponentProps<typeof Button>["variant"];
+  /** Heading shown inside the dialog */
+  title: string;
+  /** Body text warning the admin about the consequences */
+  description: string;
+  /** Called when the admin clicks the confirm button inside the dialog */
+  onConfirm: () => void;
+  /** When true, disables both the trigger button and the cancel button */
+  isPending: boolean;
+}
+
+function DeleteConfirmDialog({
+  triggerLabel,
+  triggerVariant = "outline",
+  title,
+  description,
+  onConfirm,
+  isPending,
+}: DeleteConfirmDialogProps) {
+  return (
+    <AlertDialog>
+      {/* The trigger renders as the button the admin sees on the card */}
+      <AlertDialogTrigger asChild>
+        <Button size="sm" variant={triggerVariant} disabled={isPending}>
+          {triggerLabel}
+        </Button>
+      </AlertDialogTrigger>
+
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <AlertDialogFooter>
+          {/* Cancel is also disabled while in-flight to prevent closing mid-request */}
+          <AlertDialogCancel disabled={isPending}>취소</AlertDialogCancel>
+          <AlertDialogAction onClick={onConfirm} disabled={isPending}>
+            확인
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 // ─── Pending Member Card ──────────────────────────────────────────────────────
 
 function PendingCard({ profile }: { profile: Profile }) {
   const educationSummary = buildEducationSummary(profile);
 
-  // useTransition gives us isPending (loading state) and startTransition (non-blocking wrapper).
-  // Each PendingCard manages its own loading state independently so clicking one card
-  // does not disable buttons on other cards.
-  const [isPending, startTransition] = useTransition();
+  // Separate transitions so approving one card does not disable the reject button
+  // and vice versa. Each button manages its own loading state independently.
+  const [isApprovePending, startApproveTransition] = useTransition();
+  const [isRejectPending, startRejectTransition] = useTransition();
 
   /**
    * Calls the approveMember Server Action inside a React transition.
@@ -82,7 +158,7 @@ function PendingCard({ profile }: { profile: Profile }) {
    * while the server round-trip completes. isPending becomes true during this time.
    */
   function handleApprove() {
-    startTransition(async () => {
+    startApproveTransition(async () => {
       const result = await approveMember(profile.id);
       if (result.error) alert(result.error);
       // On success, revalidatePath in the action triggers a Server Component re-render
@@ -94,7 +170,7 @@ function PendingCard({ profile }: { profile: Profile }) {
    * Calls the rejectMember Server Action inside a React transition.
    */
   function handleReject() {
-    startTransition(async () => {
+    startRejectTransition(async () => {
       const result = await rejectMember(profile.id);
       if (result.error) alert(result.error);
     });
@@ -122,18 +198,19 @@ function PendingCard({ profile }: { profile: Profile }) {
         </div>
       )}
       <div className="mt-3 flex gap-2">
-        {/* disabled during the server round-trip to prevent double-clicks */}
-        <Button size="sm" onClick={handleApprove} disabled={isPending}>
+        {/* Approve button uses its own pending state */}
+        <Button size="sm" onClick={handleApprove} disabled={isApprovePending}>
           승인
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleReject}
-          disabled={isPending}
-        >
-          반려
-        </Button>
+        {/* Reject button is wrapped in a confirmation dialog to prevent accidents */}
+        <DeleteConfirmDialog
+          triggerLabel="반려"
+          triggerVariant="outline"
+          title="반려 확인"
+          description="이 회원 신청을 반려하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+          onConfirm={handleReject}
+          isPending={isRejectPending}
+        />
       </div>
     </div>
   );
@@ -144,16 +221,28 @@ function PendingCard({ profile }: { profile: Profile }) {
 function MemberCard({ profile }: { profile: Profile }) {
   const joinDate = new Date(profile.created_at).toLocaleDateString("ko-KR");
 
-  // Each MemberCard tracks its own promotion loading state independently
-  const [isPending, startTransition] = useTransition();
+  // Track promotion and deletion loading states independently
+  const [isPromotePending, startPromoteTransition] = useTransition();
+  const [isDeletePending, startDeleteTransition] = useTransition();
 
   /**
    * Calls the promoteToAdmin Server Action inside a React transition.
    * After success, revalidatePath in the action refreshes the member list.
    */
   function handlePromote() {
-    startTransition(async () => {
+    startPromoteTransition(async () => {
       const result = await promoteToAdmin(profile.id);
+      if (result.error) alert(result.error);
+    });
+  }
+
+  /**
+   * Calls deleteMember Server Action inside a React transition.
+   * Only invoked after the admin confirms in the AlertDialog.
+   */
+  function handleDelete() {
+    startDeleteTransition(async () => {
+      const result = await deleteMember(profile.id);
       if (result.error) alert(result.error);
     });
   }
@@ -179,17 +268,28 @@ function MemberCard({ profile }: { profile: Profile }) {
           {[profile.company, profile.job_title].filter(Boolean).join(" · ")}
         </div>
       )}
-      {/* Only 'member' role users can be promoted to admin */}
-      {profile.role === "member" && (
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handlePromote}
-          disabled={isPending}
-        >
-          관리자 승격
-        </Button>
-      )}
+      <div className="mt-3 flex gap-2">
+        {/* Only 'member' role users can be promoted to admin */}
+        {profile.role === "member" && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handlePromote}
+            disabled={isPromotePending}
+          >
+            관리자 승격
+          </Button>
+        )}
+        {/* Delete button is shown for all roles (member and admin alike) */}
+        <DeleteConfirmDialog
+          triggerLabel="삭제"
+          triggerVariant="destructive"
+          title="회원 삭제"
+          description={`${profile.display_name}님을 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`}
+          onConfirm={handleDelete}
+          isPending={isDeletePending}
+        />
+      </div>
     </div>
   );
 }
