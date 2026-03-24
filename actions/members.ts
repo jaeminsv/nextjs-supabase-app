@@ -164,3 +164,49 @@ export async function promoteToAdmin(
   revalidatePath("/admin/members");
   return { success: true };
 }
+
+/**
+ * Permanently deletes any member's profile row from the database.
+ *
+ * Unlike rejectMember (pending-only), this has no role guard and can remove
+ * approved members and admins.
+ *
+ * IMPORTANT: This only deletes the profiles row, NOT the auth.users record.
+ * The user's auth identity remains in Supabase Auth. Only their app profile
+ * and access are removed.
+ *
+ * Self-deletion is blocked: an admin cannot delete their own profile.
+ *
+ * @param profileId - UUID of the profile to permanently delete
+ */
+export async function deleteMember(
+  profileId: string,
+): Promise<{ success?: true; error?: string }> {
+  // Step 1: Verify the caller is authenticated
+  const userId = await getCurrentUserId();
+  if (!userId) return { error: "Unauthorized" };
+
+  // Step 2: Verify the caller has the 'admin' role
+  const role = await getCurrentUserRole(userId);
+  if (role !== "admin") return { error: "Unauthorized" };
+
+  // Step 3: Block self-deletion — an admin deleting their own profile would
+  // lock them out of the app and could leave no admins in the system
+  if (profileId === userId)
+    return { error: "자신의 계정은 삭제할 수 없습니다" };
+
+  // Step 4: Delete the profiles row with count:'exact' so we know if RLS
+  // silently blocked the operation
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("profiles")
+    .delete({ count: "exact" })
+    .eq("id", profileId);
+
+  if (error) return { error: error.message };
+  if (count === 0) return { error: "해당 회원을 찾을 수 없습니다" };
+
+  // Step 5: Revalidate the admin members page so the card disappears
+  revalidatePath("/admin/members");
+  return { success: true };
+}
