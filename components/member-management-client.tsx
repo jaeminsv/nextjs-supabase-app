@@ -5,7 +5,7 @@
  * Handles tab toggle (pending / all members) which requires useState.
  *
  * Receives pre-fetched profile data from the Server Component (page.tsx).
- * Action buttons (approve, reject, promote) are wired in Task 015.
+ * Action buttons: approve, reject (with confirm dialog), promote, and delete (with confirm dialog).
  */
 
 import { useState, useTransition } from "react";
