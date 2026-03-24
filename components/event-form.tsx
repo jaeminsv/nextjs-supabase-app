@@ -120,14 +120,63 @@ type FormValues = z.infer<typeof formSchema>;
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Converts a datetime-local string ("YYYY-MM-DDTHH:mm") to a full ISO 8601
- * string with seconds and UTC offset ("YYYY-MM-DDTHH:mm:00.000Z").
- * Returns undefined if the input is empty or falsy.
+ * Converts a datetime-local string ("YYYY-MM-DDTHH:mm") to an ISO 8601
+ * string with the browser's local timezone offset preserved.
+ *
+ * WHY NOT toISOString():
+ * `new Date(value).toISOString()` converts local time to UTC, which shifts
+ * the stored time by the user's timezone offset (e.g., UTC-7 shifts 14:30 → 21:30Z).
+ * We want to preserve the user's intended local time by including the offset.
+ *
+ * Example (UTC-7): "2024-03-15T14:30" → "2024-03-15T14:30:00-07:00"
+ *
+ * @param value - datetime-local input string ("YYYY-MM-DDTHH:mm") or undefined
+ * @returns ISO 8601 string with local timezone offset, or undefined if input is empty
  */
 function toIsoString(value: string | undefined): string | undefined {
   if (!value) return undefined;
-  // datetime-local strings lack seconds and timezone; append them for ISO compliance
-  return new Date(value).toISOString();
+
+  // getTimezoneOffset() returns the offset in minutes:
+  // - Negative for UTC+ zones (e.g., UTC+9 → -540)
+  // - Positive for UTC- zones (e.g., UTC-7 → 420)
+  const offsetMinutes = new Date(value).getTimezoneOffset();
+  const sign = offsetMinutes <= 0 ? "+" : "-";
+  const absOffset = Math.abs(offsetMinutes);
+  const offsetHours = String(Math.floor(absOffset / 60)).padStart(2, "0");
+  const offsetMins = String(absOffset % 60).padStart(2, "0");
+
+  // Append seconds and timezone offset to produce a valid ISO 8601 string
+  return `${value}:00${sign}${offsetHours}:${offsetMins}`;
+}
+
+/**
+ * Converts a UTC ISO 8601 string (from Supabase/DB) to a local datetime
+ * string in "YYYY-MM-DDTHH:mm" format, suitable for datetime-local inputs.
+ *
+ * WHY: Supabase returns timestamps in UTC (e.g., "2024-03-15T21:30:00+00:00").
+ * Slicing the first 16 characters gives UTC time, not the user's local time.
+ * This function uses local Date methods (getHours, getMinutes, etc.) to
+ * convert the UTC timestamp to the browser's local timezone before formatting.
+ *
+ * Example (UTC-7): "2024-03-15T21:30:00+00:00" → "2024-03-15T14:30"
+ *
+ * @param isoString - UTC ISO 8601 string from DB, or undefined
+ * @returns "YYYY-MM-DDTHH:mm" string in local time, or "" if input is empty
+ */
+function toLocalDatetimeString(isoString: string | undefined): string {
+  if (!isoString) return "";
+
+  // new Date() correctly parses UTC ISO strings and represents them internally
+  // as UTC. Local Date methods (getHours, etc.) then return local-time values.
+  const date = new Date(isoString);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0"); // getMonth() is 0-indexed
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 /**
@@ -211,9 +260,9 @@ export function EventForm({
       location: defaultValues?.location ?? "",
 
       // Schedule: ISO strings are sliced to "YYYY-MM-DDTHH:mm" for datetime-local inputs
-      start_at: defaultValues?.start_at?.slice(0, 16) ?? "",
-      end_at: defaultValues?.end_at?.slice(0, 16) ?? "",
-      rsvp_deadline: defaultValues?.rsvp_deadline?.slice(0, 16) ?? "",
+      start_at: toLocalDatetimeString(defaultValues?.start_at),
+      end_at: toLocalDatetimeString(defaultValues?.end_at),
+      rsvp_deadline: toLocalDatetimeString(defaultValues?.rsvp_deadline),
 
       // Fees: converted to strings so empty inputs don't produce NaN
       fee_amount: String(defaultValues?.fee_amount ?? 0),
