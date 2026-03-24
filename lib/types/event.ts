@@ -58,8 +58,22 @@ export interface Event {
   // Additional fee per adult guest (non-member) brought by a member, in US dollars
   adult_guest_fee: number;
 
-  // Additional fee per child guest brought by a member, in US dollars
+  // Additional fee per child guest who needs a meal, brought by a member, in US dollars
   child_guest_fee: number;
+
+  // Additional fee per child guest who does NOT need a meal, in US dollars
+  // Typically 0, but configurable per event
+  child_guest_no_meal_fee: number;
+
+  // Whether to collect the number of adult guests when members RSVP
+  // false means this event is member-only (no adult companion survey)
+  collect_adult_guests: boolean;
+
+  // Whether to collect the number of child guests who need a meal when members RSVP
+  collect_child_guests_with_meal: boolean;
+
+  // Whether to collect the number of child guests who do NOT need a meal when members RSVP
+  collect_child_guests_no_meal: boolean;
 
   // Instructions explaining how members should submit payment
   // For example: "Pay via Venmo @handle" or "Pay at the door"

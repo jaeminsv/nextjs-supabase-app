@@ -41,8 +41,15 @@ export interface Rsvp {
   adult_guests: number;
 
   // Number of child guests the member plans to bring
-  // Children may have a different (often lower) fee than adults
+  // @deprecated Use child_guests_with_meal and child_guests_no_meal instead.
+  // Retained for backward compatibility with existing data.
   child_guests: number;
+
+  // Number of child guests who need a meal at the event
+  child_guests_with_meal: number;
+
+  // Number of child guests who do NOT need a meal at the event
+  child_guests_no_meal: number;
 
   // Optional private message from the member to event organizers.
   // Only visible to the member themselves and admins/organizers.

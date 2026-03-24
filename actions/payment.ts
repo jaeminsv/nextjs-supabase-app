@@ -66,7 +66,7 @@ export async function reportPayment(
   // This ensures only confirmed attendees are charged fees.
   const { data: rsvp, error: rsvpError } = await supabase
     .from("rsvps")
-    .select("id, adult_guests, child_guests")
+    .select("id, adult_guests, child_guests_with_meal, child_guests_no_meal")
     .eq("event_id", eventId)
     .eq("user_id", userId)
     .eq("status", "going")
@@ -110,7 +110,9 @@ export async function reportPayment(
   // The amount is computed server-side to prevent client-side tampering.
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("fee_amount, adult_guest_fee, child_guest_fee")
+    .select(
+      "fee_amount, adult_guest_fee, child_guest_fee, child_guest_no_meal_fee, collect_adult_guests, collect_child_guests_with_meal, collect_child_guests_no_meal",
+    )
     .eq("id", eventId)
     .single();
 
@@ -119,12 +121,25 @@ export async function reportPayment(
     return { error: "Event not found." };
   }
 
-  // Calculate total fee:
-  // base fee + (adult guests × adult guest fee) + (child guests × child guest fee)
+  // Calculate total fee based on which companion types this event collects.
+  // Only add a companion fee if the event is configured to collect that companion type.
+  //
+  // Formula:
+  //   base_fee
+  //   + (collect_adult_guests ? adult_guests × adult_guest_fee : 0)
+  //   + (collect_child_guests_with_meal ? child_guests_with_meal × child_guest_fee : 0)
+  //   + (collect_child_guests_no_meal ? child_guests_no_meal × child_guest_no_meal_fee : 0)
   const amount =
     (event.fee_amount ?? 0) +
-    rsvp.adult_guests * (event.adult_guest_fee ?? 0) +
-    rsvp.child_guests * (event.child_guest_fee ?? 0);
+    (event.collect_adult_guests
+      ? rsvp.adult_guests * (event.adult_guest_fee ?? 0)
+      : 0) +
+    (event.collect_child_guests_with_meal
+      ? (rsvp.child_guests_with_meal ?? 0) * (event.child_guest_fee ?? 0)
+      : 0) +
+    (event.collect_child_guests_no_meal
+      ? (rsvp.child_guests_no_meal ?? 0) * (event.child_guest_no_meal_fee ?? 0)
+      : 0);
 
   // Insert the payment record with 'pending' status.
   // An organizer must confirm or reject it later.

@@ -48,6 +48,10 @@ export type Database = {
         Row: {
           adult_guest_fee: number
           child_guest_fee: number
+          child_guest_no_meal_fee: number
+          collect_adult_guests: boolean
+          collect_child_guests_no_meal: boolean
+          collect_child_guests_with_meal: boolean
           created_at: string
           created_by: string
           description: string | null
@@ -66,6 +70,10 @@ export type Database = {
         Insert: {
           adult_guest_fee?: number
           child_guest_fee?: number
+          child_guest_no_meal_fee?: number
+          collect_adult_guests?: boolean
+          collect_child_guests_no_meal?: boolean
+          collect_child_guests_with_meal?: boolean
           created_at?: string
           created_by: string
           description?: string | null
@@ -84,6 +92,10 @@ export type Database = {
         Update: {
           adult_guest_fee?: number
           child_guest_fee?: number
+          child_guest_no_meal_fee?: number
+          collect_adult_guests?: boolean
+          collect_child_guests_no_meal?: boolean
+          collect_child_guests_with_meal?: boolean
           created_at?: string
           created_by?: string
           description?: string | null
@@ -253,9 +265,12 @@ export type Database = {
         Row: {
           adult_guests: number
           child_guests: number
+          child_guests_no_meal: number
+          child_guests_with_meal: number
           created_at: string
           event_id: string
           id: string
+          message_to_organizer: string | null
           status: Database["public"]["Enums"]["rsvp_status"]
           updated_at: string
           user_id: string
@@ -263,9 +278,12 @@ export type Database = {
         Insert: {
           adult_guests?: number
           child_guests?: number
+          child_guests_no_meal?: number
+          child_guests_with_meal?: number
           created_at?: string
           event_id: string
           id?: string
+          message_to_organizer?: string | null
           status: Database["public"]["Enums"]["rsvp_status"]
           updated_at?: string
           user_id: string
@@ -273,9 +291,12 @@ export type Database = {
         Update: {
           adult_guests?: number
           child_guests?: number
+          child_guests_no_meal?: number
+          child_guests_with_meal?: number
           created_at?: string
           event_id?: string
           id?: string
+          message_to_organizer?: string | null
           status?: Database["public"]["Enums"]["rsvp_status"]
           updated_at?: string
           user_id?: string

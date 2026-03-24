@@ -24,8 +24,16 @@ export const eventSchema = z.object({
   fee_amount: z.number().min(0, "회비는 0 이상이어야 합니다"),
   // Additional fee charged per adult guest a member brings
   adult_guest_fee: z.number().min(0, "동반자 회비는 0 이상이어야 합니다"),
-  // Additional fee charged per child guest a member brings
+  // Additional fee charged per child guest who needs a meal
   child_guest_fee: z.number().min(0),
+  // Additional fee charged per child guest who does NOT need a meal (typically 0)
+  child_guest_no_meal_fee: z.number().min(0).default(0),
+  // Whether to collect the number of adult guests during RSVP
+  collect_adult_guests: z.boolean().default(true),
+  // Whether to collect the number of child guests who need a meal during RSVP
+  collect_child_guests_with_meal: z.boolean().default(true),
+  // Whether to collect the number of child guests who do not need a meal during RSVP
+  collect_child_guests_no_meal: z.boolean().default(true),
   // Instructions for how to pay the fee (e.g. "Venmo @kaist-sv")
   payment_instructions: z.string().optional(),
   // Maximum number of attendees allowed — null means unlimited capacity

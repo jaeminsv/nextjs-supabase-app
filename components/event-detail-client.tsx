@@ -54,16 +54,25 @@ export function EventDetailClient({
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus | undefined>(
     initialRsvp?.status,
   );
-  // Guest counts — initialized from existing RSVP if available
+  // Guest counts — initialized from existing RSVP if available.
+  // Only initialize if the event collects that companion type.
   const [adultGuests, setAdultGuests] = useState(
-    initialRsvp?.adult_guests ?? 0,
+    event.collect_adult_guests ? (initialRsvp?.adult_guests ?? 0) : 0,
+  );
+  // Child guests split into two types: those who need a meal and those who don't
+  const [childGuestsWithMeal, setChildGuestsWithMeal] = useState(
+    event.collect_child_guests_with_meal
+      ? (initialRsvp?.child_guests_with_meal ?? 0)
+      : 0,
+  );
+  const [childGuestsNoMeal, setChildGuestsNoMeal] = useState(
+    event.collect_child_guests_no_meal
+      ? (initialRsvp?.child_guests_no_meal ?? 0)
+      : 0,
   );
   // Optional private message to organizers — initialized from existing RSVP
   const [messageToOrganizer, setMessageToOrganizer] = useState(
     initialRsvp?.message_to_organizer ?? "",
-  );
-  const [childGuests, setChildGuests] = useState(
-    initialRsvp?.child_guests ?? 0,
   );
   // Controls the payment method selection Sheet
   const [paymentSheetOpen, setPaymentSheetOpen] = useState(false);
@@ -136,8 +145,16 @@ export function EventDetailClient({
 
     const result = await submitRsvp(event.id, {
       status: rsvpStatus,
-      adult_guests: adultGuests,
-      child_guests: childGuests,
+      // Only send companion counts for types this event collects; server also enforces this
+      adult_guests: event.collect_adult_guests ? adultGuests : 0,
+      // Legacy field — kept for backward compatibility; server sets this to the sum of both types
+      child_guests: 0,
+      child_guests_with_meal: event.collect_child_guests_with_meal
+        ? childGuestsWithMeal
+        : 0,
+      child_guests_no_meal: event.collect_child_guests_no_meal
+        ? childGuestsNoMeal
+        : 0,
       // Include the optional message to organizers (empty string → undefined → null in DB)
       message_to_organizer: messageToOrganizer || undefined,
     });
@@ -202,13 +219,17 @@ export function EventDetailClient({
     ? new Date() > new Date(event.rsvp_deadline)
     : false;
 
-  // Calculate total fee based on current guest counts.
-  // fee_amount = base member fee, adult_guest_fee = per adult guest,
-  // child_guest_fee = per child (always 0 — children attend for free)
+  // Calculate total fee based on current guest counts and event collection settings.
+  // Only add companion fees for types that this event is configured to collect.
   const totalFee =
     event.fee_amount +
-    adultGuests * event.adult_guest_fee +
-    childGuests * event.child_guest_fee;
+    (event.collect_adult_guests ? adultGuests * event.adult_guest_fee : 0) +
+    (event.collect_child_guests_with_meal
+      ? childGuestsWithMeal * event.child_guest_fee
+      : 0) +
+    (event.collect_child_guests_no_meal
+      ? childGuestsNoMeal * event.child_guest_no_meal_fee
+      : 0);
 
   // Only members who responded 'going' are required to pay the fee
   const canPay = rsvpStatus === "going";
@@ -323,63 +344,98 @@ export function EventDetailClient({
               {/* Guest count inputs — only shown when going */}
               {rsvpStatus === "going" && (
                 <div className="space-y-2">
-                  {/* Adult guest counter */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">성인 동반자</span>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8"
-                        onClick={() =>
-                          setAdultGuests((n) => Math.max(0, n - 1))
-                        }
-                        disabled={adultGuests === 0}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <span className="w-6 text-center text-sm">
-                        {adultGuests}
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8"
-                        onClick={() => setAdultGuests((n) => n + 1)}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                  {/* Adult guest counter — only shown if event collects this type */}
+                  {event.collect_adult_guests && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">성인 동반자</span>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            setAdultGuests((n) => Math.max(0, n - 1))
+                          }
+                          disabled={adultGuests === 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-6 text-center text-sm">
+                          {adultGuests}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={() => setAdultGuests((n) => n + 1)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Child guest counter */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">아동 동반자</span>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8"
-                        onClick={() =>
-                          setChildGuests((n) => Math.max(0, n - 1))
-                        }
-                        disabled={childGuests === 0}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <span className="w-6 text-center text-sm">
-                        {childGuests}
-                      </span>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        className="h-8 w-8"
-                        onClick={() => setChildGuests((n) => n + 1)}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                  {/* Child guest counter (with meal) — only shown if event collects this type */}
+                  {event.collect_child_guests_with_meal && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">동반 아동 (식사 필요)</span>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            setChildGuestsWithMeal((n) => Math.max(0, n - 1))
+                          }
+                          disabled={childGuestsWithMeal === 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-6 text-center text-sm">
+                          {childGuestsWithMeal}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={() => setChildGuestsWithMeal((n) => n + 1)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Child guest counter (no meal) — only shown if event collects this type */}
+                  {event.collect_child_guests_no_meal && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm">동반 아동 (식사 불필요)</span>
+                      <div className="flex items-center gap-3">
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            setChildGuestsNoMeal((n) => Math.max(0, n - 1))
+                          }
+                          disabled={childGuestsNoMeal === 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-6 text-center text-sm">
+                          {childGuestsNoMeal}
+                        </span>
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="h-8 w-8"
+                          onClick={() => setChildGuestsNoMeal((n) => n + 1)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -431,16 +487,34 @@ export function EventDetailClient({
               <span>본인</span>
               <span>${event.fee_amount}</span>
             </div>
-            {adultGuests > 0 && (
+            {/* Adult guest fee row — only shown if event collects adult guests */}
+            {event.collect_adult_guests && adultGuests > 0 && (
               <div className="flex justify-between">
                 <span>성인 동반 {adultGuests}명</span>
                 <span>${adultGuests * event.adult_guest_fee}</span>
               </div>
             )}
-            {childGuests > 0 && (
+            {/* Child guest (with meal) fee row */}
+            {event.collect_child_guests_with_meal &&
+              childGuestsWithMeal > 0 && (
+                <div className="flex justify-between">
+                  <span>식사 필요 아동 {childGuestsWithMeal}명</span>
+                  <span>
+                    {event.child_guest_fee > 0
+                      ? `$${childGuestsWithMeal * event.child_guest_fee}`
+                      : "무료"}
+                  </span>
+                </div>
+              )}
+            {/* Child guest (no meal) fee row */}
+            {event.collect_child_guests_no_meal && childGuestsNoMeal > 0 && (
               <div className="flex justify-between">
-                <span>아동 동반 {childGuests}명</span>
-                <span>무료</span>
+                <span>식사 불필요 아동 {childGuestsNoMeal}명</span>
+                <span>
+                  {event.child_guest_no_meal_fee > 0
+                    ? `$${childGuestsNoMeal * event.child_guest_no_meal_fee}`
+                    : "무료"}
+                </span>
               </div>
             )}
             <div className="flex justify-between border-t pt-1 font-semibold">

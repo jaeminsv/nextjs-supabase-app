@@ -96,6 +96,8 @@ async function ManageEventContent({ params }: PageProps) {
       status: rsvpRow.status,
       adult_guests: rsvpRow.adult_guests,
       child_guests: rsvpRow.child_guests,
+      child_guests_with_meal: rsvpRow.child_guests_with_meal ?? 0,
+      child_guests_no_meal: rsvpRow.child_guests_no_meal ?? 0,
       // Include the optional message left by the member for organizers.
       // Cast to any because Supabase inferred types won't know about the new
       // column until the migration is applied and types are regenerated.

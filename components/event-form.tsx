@@ -37,6 +37,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Switch } from "@/components/ui/switch";
 import { RichTextEditor } from "@/components/rich-text-editor";
 import type { EventFormData } from "@/lib/validations/event";
 import type { EventOrganizer } from "@/lib/types/event";
@@ -103,6 +104,12 @@ const formSchema = z.object({
   child_guest_fee: z.string(),
   payment_instructions: z.string().optional(),
 
+  // Companion collection settings — booleans, stored directly (not as strings)
+  collect_adult_guests: z.boolean(),
+  collect_child_guests_with_meal: z.boolean(),
+  collect_child_guests_no_meal: z.boolean(),
+  child_guest_no_meal_fee: z.string(),
+
   // Settings
   max_capacity: z.string().optional(),
   status: z.enum(["draft", "published", "cancelled", "completed"]),
@@ -140,6 +147,10 @@ function toEventFormData(data: FormValues): EventFormData {
     fee_amount: parseFloat(data.fee_amount) || 0,
     adult_guest_fee: parseFloat(data.adult_guest_fee) || 0,
     child_guest_fee: parseFloat(data.child_guest_fee) || 0,
+    child_guest_no_meal_fee: parseFloat(data.child_guest_no_meal_fee) || 0,
+    collect_adult_guests: data.collect_adult_guests,
+    collect_child_guests_with_meal: data.collect_child_guests_with_meal,
+    collect_child_guests_no_meal: data.collect_child_guests_no_meal,
     payment_instructions: data.payment_instructions || undefined,
     // Convert string → integer, or undefined if empty
     max_capacity: data.max_capacity
@@ -210,6 +221,16 @@ export function EventForm({
       child_guest_fee: String(defaultValues?.child_guest_fee ?? 0),
       payment_instructions: defaultValues?.payment_instructions ?? "",
 
+      // Companion collection settings — default to true for all (collect everything)
+      collect_adult_guests: defaultValues?.collect_adult_guests ?? true,
+      collect_child_guests_with_meal:
+        defaultValues?.collect_child_guests_with_meal ?? true,
+      collect_child_guests_no_meal:
+        defaultValues?.collect_child_guests_no_meal ?? true,
+      child_guest_no_meal_fee: String(
+        defaultValues?.child_guest_no_meal_fee ?? 0,
+      ),
+
       // Settings
       max_capacity: defaultValues?.max_capacity
         ? String(defaultValues.max_capacity)
@@ -224,6 +245,11 @@ export function EventForm({
 
   // Watch the location field to show/hide the Google Maps link
   const locationValue = watch("location");
+
+  // Watch companion collection flags to conditionally show/hide fee fields
+  const collectAdultGuests = watch("collect_adult_guests");
+  const collectChildGuestsWithMeal = watch("collect_child_guests_with_meal");
+  const collectChildGuestsNoMeal = watch("collect_child_guests_no_meal");
 
   /**
    * Handles the main save/create form submission.
@@ -502,26 +528,114 @@ export function EventForm({
           />
         </div>
 
-        {/* Adult guest fee */}
-        <div className="space-y-1">
-          <Label htmlFor="adult_guest_fee">성인 동반자 요금 ($)</Label>
-          <Input
-            id="adult_guest_fee"
-            type="number"
-            min="0"
-            {...register("adult_guest_fee")}
-          />
-        </div>
+        {/* ─── Companion Collection Settings ─────────────────────────── */}
+        {/* Controls which companion types are surveyed during RSVP */}
+        <div className="space-y-3 rounded-md bg-muted/50 p-3">
+          <p className="text-sm font-medium">동반자 조사 항목 설정</p>
 
-        {/* Child guest fee — defaults to 0 (free) */}
-        <div className="space-y-1">
-          <Label htmlFor="child_guest_fee">아동 동반자 요금 ($)</Label>
-          <Input
-            id="child_guest_fee"
-            type="number"
-            min="0"
-            {...register("child_guest_fee")}
-          />
+          {/* Toggle: collect adult guest count */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Controller
+                name="collect_adult_guests"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    id="collect_adult_guests"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
+              />
+              <Label htmlFor="collect_adult_guests" className="cursor-pointer">
+                성인 동반자 수 조사
+              </Label>
+            </div>
+            {/* Adult guest fee — only shown when collect_adult_guests is ON */}
+            {collectAdultGuests && (
+              <div className="ml-10 space-y-1">
+                <Label htmlFor="adult_guest_fee">성인 동반자 요금 ($)</Label>
+                <Input
+                  id="adult_guest_fee"
+                  type="number"
+                  min="0"
+                  {...register("adult_guest_fee")}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Toggle: collect child guest count (with meal) */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Controller
+                name="collect_child_guests_with_meal"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    id="collect_child_guests_with_meal"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
+              />
+              <Label
+                htmlFor="collect_child_guests_with_meal"
+                className="cursor-pointer"
+              >
+                식사 필요한 동반 아동 수 조사
+              </Label>
+            </div>
+            {/* Child guest fee (with meal) — only shown when switch is ON */}
+            {collectChildGuestsWithMeal && (
+              <div className="ml-10 space-y-1">
+                <Label htmlFor="child_guest_fee">식사 필요 아동 요금 ($)</Label>
+                <Input
+                  id="child_guest_fee"
+                  type="number"
+                  min="0"
+                  {...register("child_guest_fee")}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Toggle: collect child guest count (no meal) */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Controller
+                name="collect_child_guests_no_meal"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    id="collect_child_guests_no_meal"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
+              />
+              <Label
+                htmlFor="collect_child_guests_no_meal"
+                className="cursor-pointer"
+              >
+                식사 불필요한 동반 아동 수 조사
+              </Label>
+            </div>
+            {/* Child guest fee (no meal) — only shown when switch is ON */}
+            {collectChildGuestsNoMeal && (
+              <div className="ml-10 space-y-1">
+                <Label htmlFor="child_guest_no_meal_fee">
+                  식사 불필요 아동 요금 ($)
+                </Label>
+                <Input
+                  id="child_guest_no_meal_fee"
+                  type="number"
+                  min="0"
+                  {...register("child_guest_no_meal_fee")}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Payment instructions — WYSIWYG editor with image/link/hyperlink support */}

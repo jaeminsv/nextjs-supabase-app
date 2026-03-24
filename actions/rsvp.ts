@@ -59,10 +59,12 @@ export async function submitRsvp(
     return { error: "Not authenticated. Please sign in again." };
   }
 
-  // Fetch the event to check deadline and capacity constraints
+  // Fetch the event to check deadline, capacity, and companion collection settings
   const { data: event, error: eventError } = await supabase
     .from("events")
-    .select("rsvp_deadline, start_at, max_capacity")
+    .select(
+      "rsvp_deadline, start_at, max_capacity, collect_adult_guests, collect_child_guests_with_meal, collect_child_guests_no_meal",
+    )
     .eq("id", eventId)
     .single();
 
@@ -107,13 +109,34 @@ export async function submitRsvp(
         0,
       );
 
-    // Calculate how many spots the current user's submission would occupy
-    const requestedSpots = 1 + data.adult_guests + data.child_guests;
+    // Calculate how many spots the current user's submission would occupy.
+    // Only count companion types that this event actually collects.
+    const adultGuestsCount = event.collect_adult_guests ? data.adult_guests : 0;
+    const childGuestsWithMealCount = event.collect_child_guests_with_meal
+      ? (data.child_guests_with_meal ?? 0)
+      : 0;
+    const childGuestsNoMealCount = event.collect_child_guests_no_meal
+      ? (data.child_guests_no_meal ?? 0)
+      : 0;
+    const requestedSpots =
+      1 + adultGuestsCount + childGuestsWithMealCount + childGuestsNoMealCount;
 
     if (currentAttendees + requestedSpots > event.max_capacity) {
       return { error: "This event is at full capacity." };
     }
   }
+
+  // Enforce companion collection settings server-side to prevent client-side tampering.
+  // If an event does not collect a certain companion type, force that count to 0.
+  const sanitizedAdultGuests = event.collect_adult_guests
+    ? data.adult_guests
+    : 0;
+  const sanitizedChildGuestsWithMeal = event.collect_child_guests_with_meal
+    ? (data.child_guests_with_meal ?? 0)
+    : 0;
+  const sanitizedChildGuestsNoMeal = event.collect_child_guests_no_meal
+    ? (data.child_guests_no_meal ?? 0)
+    : 0;
 
   // Upsert the RSVP row.
   // onConflict: 'event_id,user_id' means: if a row with the same event_id AND user_id
@@ -123,8 +146,11 @@ export async function submitRsvp(
       event_id: eventId,
       user_id: userId,
       status: data.status,
-      adult_guests: data.adult_guests,
-      child_guests: data.child_guests,
+      adult_guests: sanitizedAdultGuests,
+      // Keep legacy child_guests in sync with the sum of both child types
+      child_guests: sanitizedChildGuestsWithMeal + sanitizedChildGuestsNoMeal,
+      child_guests_with_meal: sanitizedChildGuestsWithMeal,
+      child_guests_no_meal: sanitizedChildGuestsNoMeal,
       // Store the member's optional message to organizers (null if not provided)
       message_to_organizer: data.message_to_organizer ?? null,
     },

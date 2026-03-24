@@ -73,6 +73,11 @@ export async function createEvent(
     fee_amount: data.fee_amount,
     adult_guest_fee: data.adult_guest_fee,
     child_guest_fee: data.child_guest_fee,
+    child_guest_no_meal_fee: data.child_guest_no_meal_fee,
+    // Companion collection settings — controls which guest fields appear in RSVP form
+    collect_adult_guests: data.collect_adult_guests,
+    collect_child_guests_with_meal: data.collect_child_guests_with_meal,
+    collect_child_guests_no_meal: data.collect_child_guests_no_meal,
     payment_instructions: data.payment_instructions ?? null,
     max_capacity: data.max_capacity ?? null,
     status: "draft",
@@ -150,6 +155,11 @@ export async function updateEvent(
       fee_amount: data.fee_amount,
       adult_guest_fee: data.adult_guest_fee,
       child_guest_fee: data.child_guest_fee,
+      child_guest_no_meal_fee: data.child_guest_no_meal_fee,
+      // Companion collection settings — controls which guest fields appear in RSVP form
+      collect_adult_guests: data.collect_adult_guests,
+      collect_child_guests_with_meal: data.collect_child_guests_with_meal,
+      collect_child_guests_no_meal: data.collect_child_guests_no_meal,
       payment_instructions: data.payment_instructions ?? null,
       max_capacity: data.max_capacity ?? null,
       status: data.status,
