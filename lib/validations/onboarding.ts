@@ -38,17 +38,13 @@ export const step2Schema = z.object({
 });
 export type Step2FormData = z.infer<typeof step2Schema>;
 
-// Step 3: Professional info + payment handles — all optional
+// Step 3: Professional info — all optional
 // Members can fill these in later via profile settings
 export const step3Schema = z.object({
   // Current employer or organization the member works for
   company: z.string().optional(),
   // Member's job title or role at their company
   job_title: z.string().optional(),
-  // Venmo username for receiving/sending payments (e.g. "@username")
-  venmo_handle: z.string().optional(),
-  // Zelle identifier for payments — typically a phone number or email address
-  zelle_handle: z.string().optional(),
 });
 export type Step3FormData = z.infer<typeof step3Schema>;
 

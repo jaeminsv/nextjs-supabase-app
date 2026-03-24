@@ -15,7 +15,6 @@
  *   1. Personal info   (full_name readonly, display_name, phone)
  *   2. KAIST academic  (BS, optional MS, PhD — year stored as string in form)
  *   3. Company info    (company, job_title)
- *   4. Payment handles (Venmo, Zelle)
  *
  * Year fields are stored as strings inside the form to avoid NaN issues
  * with <input type="number"> + zodResolver. They are converted to integers
@@ -71,8 +70,6 @@ const formSchema = z.object({
   kaist_phd_major: z.string().optional(),
   company: z.string().optional(),
   job_title: z.string().optional(),
-  venmo_handle: z.string().optional(),
-  zelle_handle: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -139,8 +136,6 @@ export function ProfileClient({ profile }: ProfileClientProps) {
       kaist_phd_major: profile.kaist_phd_major ?? "",
       company: profile.company ?? "",
       job_title: profile.job_title ?? "",
-      venmo_handle: profile.venmo_handle ?? "",
-      zelle_handle: profile.zelle_handle ?? "",
     },
   });
 
@@ -177,8 +172,6 @@ export function ProfileClient({ profile }: ProfileClientProps) {
       kaist_phd_major: transformed.kaist_phd_major || null,
       company: transformed.company || null,
       job_title: transformed.job_title || null,
-      venmo_handle: transformed.venmo_handle || null,
-      zelle_handle: transformed.zelle_handle || null,
     };
 
     const result = await updateProfile(payload);
@@ -442,41 +435,6 @@ export function ProfileClient({ profile }: ProfileClientProps) {
                 <Input id="job_title" {...register("job_title")} />
               ) : (
                 <p className="text-sm">{displayValue(profile.job_title)}</p>
-              )}
-            </div>
-          </div>
-        </section>
-
-        {/* ── Section 4: Payment handles ── */}
-        <section className="rounded-lg border p-4">
-          <h2 className="mb-4 font-semibold">납부 수단</h2>
-
-          <div className="flex flex-col gap-4">
-            {/* Venmo username */}
-            <div className="grid gap-1">
-              <Label htmlFor="venmo_handle">Venmo</Label>
-              {isEditing ? (
-                <Input
-                  id="venmo_handle"
-                  placeholder="@username"
-                  {...register("venmo_handle")}
-                />
-              ) : (
-                <p className="text-sm">{displayValue(profile.venmo_handle)}</p>
-              )}
-            </div>
-
-            {/* Zelle identifier (phone or email) */}
-            <div className="grid gap-1">
-              <Label htmlFor="zelle_handle">Zelle</Label>
-              {isEditing ? (
-                <Input
-                  id="zelle_handle"
-                  placeholder="phone or email"
-                  {...register("zelle_handle")}
-                />
-              ) : (
-                <p className="text-sm">{displayValue(profile.zelle_handle)}</p>
               )}
             </div>
           </div>

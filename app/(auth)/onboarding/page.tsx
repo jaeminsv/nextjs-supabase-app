@@ -67,8 +67,6 @@ const formSchema = z.object({
   kaist_phd_major: z.string().optional(),
   company: z.string().optional(),
   job_title: z.string().optional(),
-  venmo_handle: z.string().optional(),
-  zelle_handle: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -86,7 +84,7 @@ const STEP_FIELDS: Record<number, (keyof FormValues)[]> = {
     "kaist_phd_year",
     "kaist_phd_major",
   ],
-  3: ["company", "job_title", "venmo_handle", "zelle_handle"],
+  3: ["company", "job_title"],
 };
 
 const TOTAL_STEPS = 3;
@@ -138,8 +136,6 @@ export default function OnboardingPage() {
       kaist_phd_major: "",
       company: "",
       job_title: "",
-      venmo_handle: "",
-      zelle_handle: "",
     },
     mode: "onTouched",
   });
@@ -258,10 +254,9 @@ export default function OnboardingPage() {
           )}
           {currentStep === 3 && (
             <CardHeader>
-              <CardTitle>직업 및 결제 정보</CardTitle>
+              <CardTitle>직업 정보</CardTitle>
               <CardDescription>
-                현재 직업 및 결제 수단을 입력해주세요. 모든 항목은 선택
-                사항입니다.
+                현재 직업 정보를 입력해주세요. 모든 항목은 선택 사항입니다.
               </CardDescription>
             </CardHeader>
           )}
@@ -411,7 +406,7 @@ export default function OnboardingPage() {
                   </>
                 )}
 
-                {/* ─── STEP 3: Professional info + payment handles ─── */}
+                {/* ─── STEP 3: Professional info ─── */}
                 {currentStep === 3 && (
                   <>
                     {/* Current employer */}
@@ -431,26 +426,6 @@ export default function OnboardingPage() {
                         id="job_title"
                         placeholder="Software Engineer"
                         {...register("job_title")}
-                      />
-                    </div>
-
-                    {/* Venmo username for payments */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="venmo_handle">Venmo 핸들</Label>
-                      <Input
-                        id="venmo_handle"
-                        placeholder="@username"
-                        {...register("venmo_handle")}
-                      />
-                    </div>
-
-                    {/* Zelle identifier (phone or email) */}
-                    <div className="grid gap-2">
-                      <Label htmlFor="zelle_handle">Zelle 핸들</Label>
-                      <Input
-                        id="zelle_handle"
-                        placeholder="phone or email"
-                        {...register("zelle_handle")}
                       />
                     </div>
                   </>

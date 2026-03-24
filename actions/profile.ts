@@ -37,8 +37,6 @@ export interface ProfileUpdateData {
   kaist_phd_major?: string | null;
   company?: string | null;
   job_title?: string | null;
-  venmo_handle?: string | null;
-  zelle_handle?: string | null;
 }
 
 /**
@@ -94,8 +92,6 @@ export async function createProfile(
     // Optional professional info
     company: data.company ?? null,
     job_title: data.job_title ?? null,
-    venmo_handle: data.venmo_handle ?? null,
-    zelle_handle: data.zelle_handle ?? null,
   };
 
   // upsert with onConflict:'id' to handle the stub row created by the trigger

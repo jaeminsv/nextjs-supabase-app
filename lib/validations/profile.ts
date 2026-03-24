@@ -26,9 +26,5 @@ export const profileUpdateSchema = z.object({
   company: z.string().optional(),
   // Member's job title or role
   job_title: z.string().optional(),
-  // Venmo username for payments (e.g. "@username")
-  venmo_handle: z.string().optional(),
-  // Zelle identifier — typically a phone number or email address
-  zelle_handle: z.string().optional(),
 });
 export type ProfileUpdateFormData = z.infer<typeof profileUpdateSchema>;
