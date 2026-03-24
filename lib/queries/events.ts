@@ -352,8 +352,29 @@ export async function getRsvpCountsForEvents(
  * Returns profiles of attendees who have a confirmed payment for the given event.
  *
  * Used for paid events (fee_amount > 0) to populate the attendee roster.
- * Queries the payments table filtered by status = "confirmed",
- * then joins profiles directly via user_id (no rsvps join needed).
+ *
+ * Strategy: Two independent queries instead of a single nested JOIN.
+ *
+ * Why two queries?
+ * The previous implementation used a PostgREST nested join
+ * (payments → profiles) which relied on RLS evaluating two different table
+ * policies in the same query scope. Under certain conditions (e.g. complex
+ * RLS policy chains on the profiles table) the nested join returned null for
+ * every profile row, causing the roster to appear empty even when confirmed
+ * payments existed. Separating the queries lets each table's RLS policies
+ * evaluate independently and predictably.
+ *
+ * Step 1 — payments query: retrieve the user_ids of confirmed payers.
+ *   RLS policies that grant access (OR'd together):
+ *     - organizers_select_event_payments  (admin or event organizer)
+ *     - confirmed_payers_select_event_payments  (user with their own confirmed payment)
+ *     - users_select_own_payments  (own row)
+ *
+ * Step 2 — profiles query: fetch profiles for those user_ids directly.
+ *   RLS policies that grant access (OR'd together):
+ *     - members_select_all_profiles  (role = 'member' or 'admin')
+ *     - confirmed_payers_select_event_profiles  (confirmed payer, any role)
+ *     - users_select_own_profile  (own row)
  *
  * @param eventId - UUID of the event to fetch confirmed attendees for
  * @returns Array of AttendeeProfile objects, or empty array on error
@@ -364,25 +385,47 @@ export async function getConfirmedAttendeeProfiles(
   try {
     const supabase = await createClient();
 
-    // Fetch payments with status "confirmed" for this event,
-    // and join the profile fields we need for the roster display.
-    const { data, error } = await supabase
+    // Step 1: Get the user_ids of all confirmed payers for this event.
+    // Each user's payment row is accessible via their respective RLS policy.
+    const { data: paymentRows, error: paymentsError } = await supabase
       .from("payments")
-      .select(
-        "profile:profiles(id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, company, job_title)",
-      )
+      .select("user_id")
       .eq("event_id", eventId)
       .eq("status", "confirmed");
 
-    if (error) {
-      console.error("getConfirmedAttendeeProfiles error:", error);
+    if (paymentsError) {
+      console.error(
+        "getConfirmedAttendeeProfiles payments error:",
+        paymentsError,
+      );
       return [];
     }
 
-    // Flatten the nested profile objects, filtering out any rows with no profile data
-    return (data ?? []).flatMap((r) =>
-      r.profile ? [r.profile as unknown as AttendeeProfile] : [],
-    );
+    // If no confirmed payments exist yet, return early to avoid an unnecessary DB call.
+    const confirmedUserIds = (paymentRows ?? []).map((p) => p.user_id);
+    if (confirmedUserIds.length === 0) {
+      return [];
+    }
+
+    // Step 2: Fetch the profiles for those user_ids directly.
+    // Using .in() with a primary-key list is highly efficient (index scan).
+    // Profiles are filtered by existing RLS policies — see JSDoc above.
+    const { data: profileRows, error: profilesError } = await supabase
+      .from("profiles")
+      .select(
+        "id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, company, job_title",
+      )
+      .in("id", confirmedUserIds);
+
+    if (profilesError) {
+      console.error(
+        "getConfirmedAttendeeProfiles profiles error:",
+        profilesError,
+      );
+      return [];
+    }
+
+    return (profileRows ?? []) as unknown as AttendeeProfile[];
   } catch (err) {
     console.error("getConfirmedAttendeeProfiles unexpected error:", err);
     return [];
