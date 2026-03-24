@@ -59,6 +59,23 @@ export async function submitRsvp(
     return { error: "Not authenticated. Please sign in again." };
   }
 
+  // Guard: ensure the user has a profiles row before attempting the RSVP upsert.
+  // rsvps.user_id has a FK constraint referencing public.profiles(id), so an
+  // upsert will fail with a FK violation (PostgreSQL code 23503) if the profile
+  // row is missing. This can happen for accounts created before the
+  // handle_new_auth_user trigger was installed, or if the trigger failed silently.
+  const { data: profileCheck } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (!profileCheck) {
+    return {
+      error: "프로필이 설정되지 않았습니다. 프로필 설정을 먼저 완료해 주세요.",
+    };
+  }
+
   // Fetch the event to check deadline, capacity, and companion collection settings
   const { data: event, error: eventError } = await supabase
     .from("events")
@@ -158,6 +175,14 @@ export async function submitRsvp(
   );
 
   if (upsertError) {
+    // PostgreSQL FK violation error code — occurs when profiles row is missing
+    // even though we checked above. This is a rare race condition fallback.
+    if (upsertError.code === "23503") {
+      return {
+        error:
+          "프로필이 설정되지 않았습니다. 프로필 설정을 먼저 완료해 주세요.",
+      };
+    }
     console.error("submitRsvp: upsert error:", upsertError);
     return { error: upsertError.message };
   }
