@@ -14,6 +14,9 @@
 -- policy coexists safely with `users_select_own_payments`.
 -- =============================================================================
 
+-- Drop first to make this migration idempotent (safe to re-run if already applied manually)
+DROP POLICY IF EXISTS confirmed_payers_select_event_payments ON public.payments;
+
 CREATE POLICY confirmed_payers_select_event_payments ON public.payments
   FOR SELECT
   TO authenticated
