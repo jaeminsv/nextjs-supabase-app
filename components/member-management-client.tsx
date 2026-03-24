@@ -169,9 +169,16 @@ function MemberCard({ profile }: { profile: Profile }) {
           </Badge>
         </div>
       </div>
-      <div className="mb-3 text-sm text-muted-foreground">
+      <div className="mb-1 text-sm text-muted-foreground">
         가입일: {joinDate}
       </div>
+      {/* Show company and/or job title if at least one is available */}
+      {(profile.company || profile.job_title) && (
+        <div className="mb-3 text-sm text-muted-foreground">
+          직장:{" "}
+          {[profile.company, profile.job_title].filter(Boolean).join(" · ")}
+        </div>
+      )}
       {/* Only 'member' role users can be promoted to admin */}
       {profile.role === "member" && (
         <Button

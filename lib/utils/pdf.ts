@@ -139,7 +139,8 @@ function buildKaistSummary(profile: Profile): string {
 export async function generateMemberListPdf(
   profiles: Profile[],
 ): Promise<void> {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  // Use landscape orientation to accommodate the additional Company and Job Title columns
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
   // Attempt to load Korean font; capture the font name to pass into autoTable.
   // autoTable manages its own font stack independently from doc.setFont(),
@@ -157,12 +158,16 @@ export async function generateMemberListPdf(
   // ── Table ──
   autoTable(doc, {
     startY: 28,
-    head: [["Name", "Role", "Phone", "KAIST", "Joined"]],
+    head: [
+      ["Name", "Role", "Phone", "KAIST", "Company", "Job Title", "Joined"],
+    ],
     body: profiles.map((p) => [
       p.display_name || p.full_name,
       formatRole(p.role),
       p.phone || "-",
       buildKaistSummary(p) || "-",
+      p.company || "-",
+      p.job_title || "-",
       new Date(p.created_at).toLocaleDateString("en-US"),
     ]),
     headStyles: {
