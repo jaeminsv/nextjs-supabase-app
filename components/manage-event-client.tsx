@@ -88,6 +88,17 @@ export function ManageEventClient({
   // Total expected amount if all going members pay their full fee
   const totalAmount = attendees.reduce((sum, a) => sum + a.totalFee, 0);
 
+  // Total adult count = members (goingCount) + all adult companions
+  const totalAdultCount =
+    goingCount + attendees.reduce((sum, a) => sum + a.rsvp.adult_guests, 0);
+  // Total child count = sum of all child guests
+  const totalChildCount = attendees.reduce(
+    (sum, a) => sum + a.rsvp.child_guests,
+    0,
+  );
+  // Grand total = adults + children
+  const totalPeopleCount = totalAdultCount + totalChildCount;
+
   // ─── Tab filter ────────────────────────────────────────────────────────────
 
   const filteredAttendees =
@@ -166,6 +177,13 @@ export function ManageEventClient({
         )}
       </div>
 
+      {/* ─── Headcount Summary ────────────────────────────────────────────── */}
+      {/* Headcount summary — total participants broken down by adult/child */}
+      <div className="mx-4 mb-3 rounded-lg bg-muted p-3 text-sm font-medium">
+        총 {totalPeopleCount}명 참가 &middot; 성인 {totalAdultCount}명 &middot;
+        아동 {totalChildCount}명
+      </div>
+
       {/* ─── Filter Tabs ──────────────────────────────────────────────────── */}
       {/* role="tablist" wraps the tabs; each button has role="tab" for aria support */}
       <div role="tablist" className="flex border-b">
@@ -197,10 +215,46 @@ export function ManageEventClient({
                 <PaymentStatusBadge status={payment?.status} />
               </div>
 
+              {/* KAIST graduation years and company/job title — shown when available */}
+              {(() => {
+                // Build graduation year string from whichever degrees the member holds
+                const kaistParts = [
+                  profile.kaist_bs_year
+                    ? `BS'${String(profile.kaist_bs_year).slice(2)}`
+                    : null,
+                  profile.kaist_ms_year
+                    ? `MS'${String(profile.kaist_ms_year).slice(2)}`
+                    : null,
+                  profile.kaist_phd_year
+                    ? `PhD'${String(profile.kaist_phd_year).slice(2)}`
+                    : null,
+                ].filter(Boolean);
+                const kaistInfo =
+                  kaistParts.length > 0 ? kaistParts.join(" / ") : null;
+
+                // Combine company and job_title; fall back to whichever is non-null
+                const companyInfo =
+                  profile.company && profile.job_title
+                    ? `${profile.company} / ${profile.job_title}`
+                    : (profile.company ?? profile.job_title ?? null);
+
+                return kaistInfo || companyInfo ? (
+                  <div className="text-xs text-muted-foreground">
+                    {kaistInfo && <span>{kaistInfo}</span>}
+                    {kaistInfo && companyInfo && (
+                      <span className="mx-1">&middot;</span>
+                    )}
+                    {companyInfo && <span>{companyInfo}</span>}
+                  </div>
+                ) : null;
+              })()}
+
               {/* Middle row: guest counts + fee amount */}
+              {/* total adults = 1 (member) + adult_guests (companions) */}
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <span>
-                  성인 {rsvp.adult_guests}명 &middot; 아동 {rsvp.child_guests}명
+                  성인 {rsvp.adult_guests + 1}명 &middot; 아동{" "}
+                  {rsvp.child_guests}명
                 </span>
                 <span>${totalFee}</span>
               </div>

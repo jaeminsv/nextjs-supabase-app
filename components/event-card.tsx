@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Calendar, MapPin, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { RsvpStatusBadge } from "@/components/rsvp-status-badge";
 import { EventStatusBadge } from "@/components/event-status-badge";
@@ -59,6 +59,20 @@ export function EventCard({
             <MapPin className="h-3.5 w-3.5 shrink-0" />
             <span className="line-clamp-1">{event.location}</span>
           </div>
+
+          {/* RSVP deadline row — only shown for published events with a deadline set */}
+          {event.status === "published" && event.rsvp_deadline !== null && (
+            <div className="mb-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Clock className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                RSVP 마감:{" "}
+                {new Date(event.rsvp_deadline).toLocaleDateString("ko-KR", {
+                  month: "long",
+                  day: "numeric",
+                })}
+              </span>
+            </div>
+          )}
 
           {/* Capacity + RSVP status row */}
           <div className="mt-3 flex items-center justify-between">

@@ -30,6 +30,7 @@ import {
 import type { Event } from "@/lib/types/event";
 import type { Rsvp, RsvpStatus } from "@/lib/types/rsvp";
 import type { Payment, PaymentMethod } from "@/lib/types/payment";
+import type { AttendeeProfile } from "@/app/(main)/events/[id]/page";
 
 interface EventDetailClientProps {
   event: Event;
@@ -41,6 +42,8 @@ interface EventDetailClientProps {
   isAdmin: boolean;
   // Whether the current user is listed as an organizer for this specific event
   isOrganizer: boolean;
+  // Profiles of all going attendees — only populated when the user has permission to see the list
+  attendeeProfiles?: AttendeeProfile[];
 }
 
 export function EventDetailClient({
@@ -49,6 +52,7 @@ export function EventDetailClient({
   initialPayment,
   isAdmin,
   isOrganizer,
+  attendeeProfiles,
 }: EventDetailClientProps) {
   // RSVP state — initialized from existing RSVP if available
   const [rsvpStatus, setRsvpStatus] = useState<RsvpStatus | undefined>(
@@ -584,6 +588,61 @@ export function EventDetailClient({
             </div>
           )}
         </section>
+
+        {/* === Attendee List Section === */}
+        {/* Visible only to: members who responded 'going', admins, and organizers */}
+        {(initialRsvp?.status === "going" || isAdmin || isOrganizer) &&
+          attendeeProfiles &&
+          attendeeProfiles.length > 0 && (
+            <section className="space-y-2 rounded-lg border p-4">
+              <h2 className="text-base font-semibold">참가자 명단</h2>
+              <ul className="space-y-2">
+                {attendeeProfiles.map((profile) => {
+                  // Build KAIST graduation year string from whichever degrees are available
+                  const kaistParts = [
+                    profile.kaist_bs_year
+                      ? `BS'${String(profile.kaist_bs_year).slice(2)}`
+                      : null,
+                    profile.kaist_ms_year
+                      ? `MS'${String(profile.kaist_ms_year).slice(2)}`
+                      : null,
+                    profile.kaist_phd_year
+                      ? `PhD'${String(profile.kaist_phd_year).slice(2)}`
+                      : null,
+                  ].filter(Boolean);
+                  const kaistInfo =
+                    kaistParts.length > 0 ? kaistParts.join(" / ") : null;
+
+                  // Combine company and job_title into a single line when both are present
+                  const companyInfo =
+                    profile.company && profile.job_title
+                      ? `${profile.company} / ${profile.job_title}`
+                      : (profile.company ?? profile.job_title ?? null);
+
+                  return (
+                    <li
+                      key={profile.id}
+                      className="rounded-md bg-muted/40 px-3 py-2 text-sm"
+                    >
+                      <span className="font-medium">
+                        {profile.display_name}
+                      </span>
+                      {kaistInfo && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {kaistInfo}
+                        </span>
+                      )}
+                      {companyInfo && (
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {companyInfo}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
 
         {/* === Payment Method Sheet === */}
         {/* Slides up from the bottom for mobile-friendly payment method selection */}

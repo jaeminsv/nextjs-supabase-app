@@ -63,10 +63,13 @@ async function ManageEventContent({ params }: PageProps) {
     isAdmin = profileData?.role === "admin";
   }
 
-  // Fetch only 'going' RSVPs with joined profile data for display
+  // Fetch only 'going' RSVPs with joined profile data for display.
+  // Includes KAIST graduation years and company/job_title for the attendee card UI.
   const { data: goingRsvps } = await supabase
     .from("rsvps")
-    .select("*, profile:profiles(id, display_name, full_name, email, role)")
+    .select(
+      "*, profile:profiles(id, display_name, full_name, email, role, kaist_bs_year, kaist_ms_year, kaist_phd_year, company, job_title)",
+    )
     .eq("event_id", id)
     .eq("status", "going");
 

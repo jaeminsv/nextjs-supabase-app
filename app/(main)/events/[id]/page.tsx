@@ -11,6 +11,17 @@ import {
 } from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
 
+// Minimal profile fields shown in the attendee list (subset of the full Profile type)
+export interface AttendeeProfile {
+  id: string;
+  display_name: string;
+  kaist_bs_year: number | null;
+  kaist_ms_year: number | null;
+  kaist_phd_year: number | null;
+  company: string | null;
+  job_title: string | null;
+}
+
 // Dynamic import splits EventDetailClient into its own JS chunk.
 // The detail page contains rich interactive UI (RSVP, payment forms) that
 // is large enough to benefit from code splitting.
@@ -66,6 +77,29 @@ async function EventDetailContent({ params }: PageProps) {
     ? organizers.some((o) => o.user_id === userId)
     : false;
 
+  // Determine if the current user is allowed to see the attendee list.
+  // Access is granted to: members who responded 'going', admins, and organizers.
+  const canSeeAttendees =
+    initialRsvp?.status === "going" || isAdmin || isOrganizer;
+
+  // Only fetch attendee profiles when the user has permission to view the list.
+  // This avoids an unnecessary DB round-trip for users who cannot see the section.
+  let attendeeProfiles: AttendeeProfile[] = [];
+  if (canSeeAttendees) {
+    const { data: goingRsvps } = await supabase
+      .from("rsvps")
+      .select(
+        "profile:profiles(id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, company, job_title)",
+      )
+      .eq("event_id", id)
+      .eq("status", "going");
+
+    // Flatten the nested profile objects, filtering out any rows with no profile data
+    attendeeProfiles = (goingRsvps ?? []).flatMap((r) =>
+      r.profile ? [r.profile as unknown as AttendeeProfile] : [],
+    );
+  }
+
   return (
     <EventDetailClient
       event={event}
@@ -73,6 +107,7 @@ async function EventDetailContent({ params }: PageProps) {
       initialPayment={initialPayment ?? undefined}
       isAdmin={isAdmin}
       isOrganizer={isOrganizer}
+      attendeeProfiles={attendeeProfiles}
     />
   );
 }
