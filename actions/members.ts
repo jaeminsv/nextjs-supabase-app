@@ -113,14 +113,18 @@ export async function rejectMember(
 
   // Step 3: Delete the profiles row
   // .eq('role', 'pending') is a safety guard — never delete approved members here
+  // count:'exact' makes Supabase return the number of deleted rows.
+  // If count === 0 the RLS policy blocked the delete (or the row no longer exists).
   const supabase = await createClient();
-  const { error } = await supabase
+  const { error, count } = await supabase
     .from("profiles")
-    .delete()
+    .delete({ count: "exact" })
     .eq("id", profileId)
     .eq("role", "pending");
 
   if (error) return { error: error.message };
+  if (count === 0)
+    return { error: "해당 회원을 찾을 수 없거나 이미 처리되었습니다" };
 
   // Step 4: Revalidate the admin members page so the list refreshes
   revalidatePath("/admin/members");
