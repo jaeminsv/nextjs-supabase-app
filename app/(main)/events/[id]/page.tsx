@@ -11,16 +11,7 @@ import {
 } from "@/lib/queries/events";
 import { createClient } from "@/lib/supabase/server";
 
-// Minimal profile fields shown in the attendee list (subset of the full Profile type)
-export interface AttendeeProfile {
-  id: string;
-  display_name: string;
-  kaist_bs_year: number | null;
-  kaist_ms_year: number | null;
-  kaist_phd_year: number | null;
-  company: string | null;
-  job_title: string | null;
-}
+import type { AttendeeProfile } from "@/lib/types/attendee";
 
 // Dynamic import splits EventDetailClient into its own JS chunk.
 // The detail page contains rich interactive UI (RSVP, payment forms) that

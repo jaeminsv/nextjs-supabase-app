@@ -30,7 +30,7 @@ import {
 import type { Event } from "@/lib/types/event";
 import type { Rsvp, RsvpStatus } from "@/lib/types/rsvp";
 import type { Payment, PaymentMethod } from "@/lib/types/payment";
-import type { AttendeeProfile } from "@/app/(main)/events/[id]/page";
+import type { AttendeeProfile } from "@/lib/types/attendee";
 
 interface EventDetailClientProps {
   event: Event;
