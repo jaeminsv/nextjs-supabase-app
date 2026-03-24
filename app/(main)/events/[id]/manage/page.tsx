@@ -111,11 +111,19 @@ async function ManageEventContent({ params }: PageProps) {
       | Payment
       | undefined;
 
-    // Total fee = base member fee + per-adult-guest + per-child-guest
+    // Total fee = base member fee + conditional guest fees based on collect_* flags.
+    // Each guest category is only charged if the event is configured to collect it.
     const totalFee =
       event.fee_amount +
-      rsvpRow.adult_guests * event.adult_guest_fee +
-      rsvpRow.child_guests * event.child_guest_fee;
+      (event.collect_adult_guests
+        ? rsvp.adult_guests * event.adult_guest_fee
+        : 0) +
+      (event.collect_child_guests_with_meal
+        ? rsvp.child_guests_with_meal * event.child_guest_fee
+        : 0) +
+      (event.collect_child_guests_no_meal
+        ? rsvp.child_guests_no_meal * event.child_guest_no_meal_fee
+        : 0);
 
     return [{ profile, rsvp, payment, totalFee }];
   });
