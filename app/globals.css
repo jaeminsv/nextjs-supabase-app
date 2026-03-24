@@ -73,7 +73,7 @@
    Tailwind Typography's prose class can cascade a color onto <strong>, which
    would override the inline style="color: xxx" set by the Color extension. */
 .ProseMirror strong {
-  color: inherit;
+  color: inherit !important;
 }
 
 /* Fix: Show underline on autolinked URLs so users can identify clickable links. */
