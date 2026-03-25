@@ -7,6 +7,9 @@
 export interface AttendeeProfile {
   id: string;
   display_name: string;
+  // Whether the member was enrolled in the integrated MS/PhD program at KAIST.
+  // When true, kaist_ms_year should not be displayed.
+  is_integrated_ms_phd: boolean;
   kaist_bs_year: number | null;
   kaist_ms_year: number | null;
   kaist_phd_year: number | null;

@@ -32,7 +32,7 @@ async function MemberManagementContent() {
   const { data, error } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, display_name, email, role, phone, company, job_title, kaist_bs_year, kaist_ms_year, kaist_phd_year, created_at",
+      "id, full_name, display_name, email, role, phone, company, job_title, kaist_bs_year, kaist_ms_year, kaist_phd_year, is_integrated_ms_phd, created_at",
     )
     .order("created_at", { ascending: false });
 

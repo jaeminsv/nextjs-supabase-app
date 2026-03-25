@@ -121,7 +121,9 @@ function todayString(): string {
 function buildKaistSummary(profile: Profile): string {
   const parts: string[] = [];
   if (profile.kaist_bs_year) parts.push(`BS ${profile.kaist_bs_year}`);
-  if (profile.kaist_ms_year) parts.push(`MS ${profile.kaist_ms_year}`);
+  // Skip MS when the member was in the integrated MS/PhD program
+  if (!profile.is_integrated_ms_phd && profile.kaist_ms_year)
+    parts.push(`MS ${profile.kaist_ms_year}`);
   if (profile.kaist_phd_year) parts.push(`PhD ${profile.kaist_phd_year}`);
   return parts.join(" · ");
 }

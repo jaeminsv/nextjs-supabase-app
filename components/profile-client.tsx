@@ -154,7 +154,11 @@ export function ProfileClient({ profile }: ProfileClientProps) {
     const transformed = {
       ...data,
       kaist_bs_year: parseYear(data.kaist_bs_year),
-      kaist_ms_year: parseYear(data.kaist_ms_year),
+      // Force kaist_ms_year to null when integrated MS/PhD is selected,
+      // since MS is not a separate degree in that program.
+      kaist_ms_year: data.is_integrated_ms_phd
+        ? null
+        : parseYear(data.kaist_ms_year),
       kaist_phd_year: parseYear(data.kaist_phd_year),
     };
 

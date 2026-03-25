@@ -413,7 +413,7 @@ export async function getConfirmedAttendeeProfiles(
     const { data: profileRows, error: profilesError } = await supabase
       .from("profiles")
       .select(
-        "id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, company, job_title",
+        "id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, is_integrated_ms_phd, company, job_title",
       )
       .in("id", confirmedUserIds);
 

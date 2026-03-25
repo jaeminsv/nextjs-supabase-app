@@ -222,7 +222,8 @@ export function ManageEventClient({
                   profile.kaist_bs_year
                     ? `BS'${String(profile.kaist_bs_year).slice(2)}`
                     : null,
-                  profile.kaist_ms_year
+                  // Skip MS when the member was in the integrated MS/PhD program
+                  !profile.is_integrated_ms_phd && profile.kaist_ms_year
                     ? `MS'${String(profile.kaist_ms_year).slice(2)}`
                     : null,
                   profile.kaist_phd_year

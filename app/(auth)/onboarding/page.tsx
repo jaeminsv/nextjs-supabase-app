@@ -179,7 +179,12 @@ export default function OnboardingPage() {
     const transformed: OnboardingFormData = {
       ...data,
       kaist_bs_year: parseYear(data.kaist_bs_year),
-      kaist_ms_year: parseYear(data.kaist_ms_year),
+      // Force kaist_ms_year to undefined when integrated MS/PhD is selected,
+      // since MS is not a separate degree in that program.
+      // The server action converts undefined → null before writing to DB.
+      kaist_ms_year: data.is_integrated_ms_phd
+        ? undefined
+        : parseYear(data.kaist_ms_year),
       kaist_phd_year: parseYear(data.kaist_phd_year),
       // Ensure is_integrated_ms_phd is always a boolean
       is_integrated_ms_phd: data.is_integrated_ms_phd ?? false,

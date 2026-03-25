@@ -111,7 +111,7 @@ async function EventDetailContent({ params }: PageProps) {
       const { data: goingRsvps } = await supabase
         .from("rsvps")
         .select(
-          "profile:profiles(id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, company, job_title)",
+          "profile:profiles(id, display_name, kaist_bs_year, kaist_ms_year, kaist_phd_year, is_integrated_ms_phd, company, job_title)",
         )
         .eq("event_id", id)
         .eq("status", "going");

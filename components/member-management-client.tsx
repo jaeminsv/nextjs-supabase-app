@@ -80,7 +80,8 @@ function buildEducationSummary(profile: Profile): string {
   const parts: string[] = [];
   if (profile.kaist_bs_year)
     parts.push(`BS'${String(profile.kaist_bs_year).slice(2)}`);
-  if (profile.kaist_ms_year)
+  // Skip MS when the member was in the integrated MS/PhD program
+  if (!profile.is_integrated_ms_phd && profile.kaist_ms_year)
     parts.push(`MS'${String(profile.kaist_ms_year).slice(2)}`);
   if (profile.kaist_phd_year)
     parts.push(`PhD'${String(profile.kaist_phd_year).slice(2)}`);
