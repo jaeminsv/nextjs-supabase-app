@@ -70,7 +70,10 @@ export function SignUpForm({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/protected`,
+          // Redirect to the OTP verification handler, not directly to a protected page.
+          // Supabase appends ?token_hash=...&type=email to this URL.
+          // The /auth/confirm route calls verifyOtp() and then redirects based on the 'next' param.
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
         },
       });
       if (error) throw error;
