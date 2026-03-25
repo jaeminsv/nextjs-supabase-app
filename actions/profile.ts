@@ -61,22 +61,29 @@ export async function createProfile(
 ): Promise<{ success?: true; error?: string }> {
   const supabase = await createClient();
 
-  // Verify the user is authenticated using getClaims() instead of getUser().
-  // getClaims() reads the JWT from the cookie locally without a network round-trip,
-  // which avoids Supabase Auth API rate limits (429) that getUser() can trigger.
-  // RLS policies enforce authorization at the DB level as an additional safeguard.
-  const { data: claimsData } = await supabase.auth.getClaims();
-  const claims = claimsData?.claims;
+  // Use getUser() to verify the user against the Supabase Auth server.
+  // Unlike getClaims() which only parses the local JWT (no network call),
+  // getUser() makes an HTTP request to confirm the user still exists in auth.users.
+  // This prevents a race condition where an admin deletes a user during onboarding:
+  // the deleted user's JWT stays valid in the browser, but getUser() will return null,
+  // so we catch the FK violation before it reaches the database.
+  // createProfile is only called once per user (onboarding submit), so rate limits are not a concern.
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
 
-  if (!claims) {
-    return { error: "Not authenticated. Please sign in again." };
+  if (!user || userError) {
+    return {
+      error: "계정이 존재하지 않습니다. 새로 회원가입 후 다시 시도해주세요.",
+    };
   }
 
   // Build the profile payload using the DB Insert type for type safety.
   // role is always set to 'pending' — admin must approve before member access.
   const profile: ProfileInsert = {
-    id: claims.sub,
-    email: claims.email ?? "",
+    id: user.id,
+    email: user.email ?? "",
     role: "pending",
     full_name: data.full_name,
     display_name: data.display_name,
@@ -101,7 +108,7 @@ export async function createProfile(
 
   if (upsertError) {
     console.error("createProfile upsert error:", upsertError);
-    return { error: upsertError.message };
+    return { error: "프로필 저장에 실패했습니다. 잠시 후 다시 시도해주세요." };
   }
 
   return { success: true };
