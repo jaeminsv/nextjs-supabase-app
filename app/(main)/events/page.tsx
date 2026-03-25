@@ -8,7 +8,10 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import dynamic from "next/dynamic";
+// Renamed to avoid conflict with the `dynamic` route config export above.
+// ES module imports are hoisted, so using the same name would shadow the
+// "force-dynamic" export and prevent Next.js from recognising it.
+import nextDynamic from "next/dynamic";
 import {
   getUpcomingEvents,
   getPastEvents,
@@ -21,7 +24,7 @@ import type { Rsvp } from "@/lib/types/rsvp";
 // Dynamic import splits EventsListClient into its own JS chunk.
 // This reduces the initial bundle size because the component code is only
 // downloaded after the server renders the page shell and sends it to the browser.
-const EventsListClient = dynamic(() =>
+const EventsListClient = nextDynamic(() =>
   import("@/components/events-list-client").then((m) => m.EventsListClient),
 );
 

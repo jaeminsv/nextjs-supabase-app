@@ -7,13 +7,14 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import dynamic from "next/dynamic";
+// Renamed to avoid conflict with the `dynamic` route config export above.
+import nextDynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/server";
 import type { Profile } from "@/lib/types/profile";
 
 // Dynamic import splits MemberManagementClient into its own JS chunk.
 // This page is admin-only, so splitting it reduces the bundle for member page loads.
-const MemberManagementClient = dynamic(() =>
+const MemberManagementClient = nextDynamic(() =>
   import("@/components/member-management-client").then(
     (m) => m.MemberManagementClient,
   ),

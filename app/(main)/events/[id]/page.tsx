@@ -7,7 +7,8 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import dynamic from "next/dynamic";
+// Renamed to avoid conflict with the `dynamic` route config export above.
+import nextDynamic from "next/dynamic";
 import { notFound } from "next/navigation";
 import {
   getEventById,
@@ -22,7 +23,7 @@ import type { AttendeeProfile, RosterAccess } from "@/lib/types/attendee";
 // Dynamic import splits EventDetailClient into its own JS chunk.
 // The detail page contains rich interactive UI (RSVP, payment forms) that
 // is large enough to benefit from code splitting.
-const EventDetailClient = dynamic(() =>
+const EventDetailClient = nextDynamic(() =>
   import("@/components/event-detail-client").then((m) => m.EventDetailClient),
 );
 
