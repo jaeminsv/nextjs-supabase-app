@@ -1,6 +1,11 @@
 // Admin member management page — Server Component wrapper.
 // Wraps data-fetching in Suspense as required by cacheComponents mode.
 
+// Force dynamic rendering — this page reads cookies() for Supabase auth.
+// Without this, Next.js attempts static pre-rendering at build time,
+// which throws a "Dynamic server usage" error.
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/server";

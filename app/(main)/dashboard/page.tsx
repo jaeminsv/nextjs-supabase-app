@@ -6,6 +6,11 @@
 // Next.js 16 cacheComponents requirement that uncached data access must
 // happen inside a Suspense boundary.
 
+// Force dynamic rendering — this page reads cookies() for Supabase auth.
+// Without this, Next.js attempts static pre-rendering at build time,
+// which throws a "Dynamic server usage" error.
+export const dynamic = "force-dynamic";
+
 import { Suspense } from "react";
 import Link from "next/link";
 import { AlertCircle, CalendarX } from "lucide-react";
