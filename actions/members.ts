@@ -133,11 +133,18 @@ export async function rejectMember(
 
   // Step 4: Delete the auth.users record using the Admin API (service_role key).
   // The profiles row is automatically deleted via the ON DELETE CASCADE constraint.
-  const adminClient = createAdminClient();
-  const { error: deleteError } =
-    await adminClient.auth.admin.deleteUser(profileId);
-
-  if (deleteError) return { error: deleteError.message };
+  // Wrap in try/catch so a missing or invalid SUPABASE_SERVICE_ROLE_KEY returns
+  // a clean error message instead of throwing and breaking the page.
+  try {
+    const adminClient = createAdminClient();
+    const { error: deleteError } =
+      await adminClient.auth.admin.deleteUser(profileId);
+    if (deleteError) return { error: deleteError.message };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "서버 오류가 발생했습니다";
+    return { error: message };
+  }
 
   // Step 5: Revalidate the admin members page so the card disappears
   revalidatePath("/admin/members");
@@ -209,13 +216,20 @@ export async function deleteMember(
 
   // Step 4: Delete the auth.users record using the Admin API (service_role key).
   // The profiles row is automatically deleted via the ON DELETE CASCADE constraint.
-  const adminClient = createAdminClient();
-  const { error: deleteError } =
-    await adminClient.auth.admin.deleteUser(profileId);
-
-  if (deleteError) {
-    // AuthApiError with status 404 means the user does not exist in auth.users
-    return { error: deleteError.message };
+  // Wrap in try/catch so a missing or invalid SUPABASE_SERVICE_ROLE_KEY returns
+  // a clean error message instead of throwing and breaking the page.
+  try {
+    const adminClient = createAdminClient();
+    const { error: deleteError } =
+      await adminClient.auth.admin.deleteUser(profileId);
+    if (deleteError) {
+      // AuthApiError with status 404 means the user does not exist in auth.users
+      return { error: deleteError.message };
+    }
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "서버 오류가 발생했습니다";
+    return { error: message };
   }
 
   // Step 5: Revalidate the admin members page so the card disappears
