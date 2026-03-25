@@ -44,8 +44,8 @@ export function LoginForm({
         password,
       });
       if (signInError) throw signInError;
-      // Redirect to the protected area after successful login
-      router.push("/protected");
+      // Redirect to the dashboard after successful login
+      router.push("/dashboard");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "로그인에 실패했습니다.");
     } finally {
