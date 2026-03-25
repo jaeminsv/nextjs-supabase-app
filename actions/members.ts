@@ -4,15 +4,18 @@
  * Server Actions for admin member management.
  *
  * These actions run on the server and are called from Client Components.
- * They handle Supabase mutations on the profiles table for member lifecycle:
- *   - approveMember: pending → member
- *   - rejectMember:  delete profile row for pending members (does NOT delete auth user)
- *   - promoteToAdmin: member → admin
- *   - deleteMember:  permanently delete any member's profile row (no role restriction)
+ * They handle member lifecycle operations:
+ *   - approveMember:  pending → member (profiles UPDATE)
+ *   - rejectMember:   permanently delete a pending member (auth.users DELETE via Admin API)
+ *   - promoteToAdmin: member → admin (profiles UPDATE)
+ *   - deleteMember:   permanently delete any member (auth.users DELETE via Admin API)
  *
- * IMPORTANT: rejectMember only deletes the profiles row, not the auth.users row.
- * Deleting auth users requires the Supabase Admin API (service_role key),
- * which must not be exposed in Server Actions. Handle auth user cleanup separately.
+ * Why auth.admin.deleteUser() instead of profiles DELETE directly?
+ * - The profiles table has `REFERENCES auth.users(id) ON DELETE CASCADE`, so
+ *   deleting the auth.users row automatically cascades to the profiles row.
+ * - This ensures both the auth identity and the app profile are fully removed.
+ * - The Admin API uses the service_role key (lib/supabase/admin.ts) which bypasses
+ *   RLS, guaranteeing the delete always succeeds for a valid admin caller.
  *
  * NOTE: RLS policies on the DB layer enforce authorization (admin only).
  * App layer also verifies role via getClaims() + profiles lookup for early return,
@@ -21,6 +24,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ProfileRole } from "@/lib/types/profile";
 
 /**
@@ -90,16 +94,17 @@ export async function approveMember(
 }
 
 /**
- * Rejects a pending member by deleting their profile row from the database.
+ * Rejects a pending member by permanently deleting their auth.users record.
  *
- * NOTE: This does NOT delete the auth.users row. The user's Google account
- * record in Supabase Auth remains intact. Only the profiles row is removed,
- * which effectively revokes their access to the app.
+ * Deletion strategy:
+ * 1. Verify the target profile exists AND has role='pending' (safety guard).
+ * 2. Call auth.admin.deleteUser() via the service_role Admin client.
+ * 3. The `profiles` row is automatically removed via ON DELETE CASCADE.
  *
- * The .eq('role', 'pending') guard ensures we never accidentally delete
- * an approved member's profile.
+ * This approach ensures the auth identity and app profile are both cleaned up.
+ * The .role='pending' check prevents accidentally rejecting approved members.
  *
- * @param profileId - UUID of the profile to reject (delete)
+ * @param profileId - UUID of the profile (= auth.users id) to reject
  */
 export async function rejectMember(
   profileId: string,
@@ -112,22 +117,29 @@ export async function rejectMember(
   const role = await getCurrentUserRole(userId);
   if (role !== "admin") return { error: "Unauthorized" };
 
-  // Step 3: Delete the profiles row
-  // .eq('role', 'pending') is a safety guard — never delete approved members here
-  // count:'exact' makes Supabase return the number of deleted rows.
-  // If count === 0 the RLS policy blocked the delete (or the row no longer exists).
+  // Step 3: Confirm the target profile exists and is still 'pending'.
+  // This prevents accidentally deleting an already-approved member via this action.
   const supabase = await createClient();
-  const { error, count } = await supabase
+  const { data: targetProfile, error: fetchError } = await supabase
     .from("profiles")
-    .delete({ count: "exact" })
+    .select("id, role")
     .eq("id", profileId)
-    .eq("role", "pending");
+    .eq("role", "pending")
+    .single();
 
-  if (error) return { error: error.message };
-  if (count === 0)
+  if (fetchError || !targetProfile) {
     return { error: "해당 회원을 찾을 수 없거나 이미 처리되었습니다" };
+  }
 
-  // Step 4: Revalidate the admin members page so the list refreshes
+  // Step 4: Delete the auth.users record using the Admin API (service_role key).
+  // The profiles row is automatically deleted via the ON DELETE CASCADE constraint.
+  const adminClient = createAdminClient();
+  const { error: deleteError } =
+    await adminClient.auth.admin.deleteUser(profileId);
+
+  if (deleteError) return { error: deleteError.message };
+
+  // Step 5: Revalidate the admin members page so the card disappears
   revalidatePath("/admin/members");
   return { success: true };
 }
@@ -167,18 +179,17 @@ export async function promoteToAdmin(
 }
 
 /**
- * Permanently deletes any member's profile row from the database.
+ * Permanently deletes any member's auth.users record and cascades to their profile.
+ *
+ * Deletion strategy:
+ * 1. Block self-deletion (an admin cannot delete their own account).
+ * 2. Call auth.admin.deleteUser() via the service_role Admin client.
+ * 3. The `profiles` row is automatically removed via ON DELETE CASCADE.
  *
  * Unlike rejectMember (pending-only), this has no role guard and can remove
- * approved members and admins.
+ * approved members and other admins.
  *
- * IMPORTANT: This only deletes the profiles row, NOT the auth.users record.
- * The user's auth identity remains in Supabase Auth. Only their app profile
- * and access are removed.
- *
- * Self-deletion is blocked: an admin cannot delete their own profile.
- *
- * @param profileId - UUID of the profile to permanently delete
+ * @param profileId - UUID of the profile (= auth.users id) to permanently delete
  */
 export async function deleteMember(
   profileId: string,
@@ -196,16 +207,16 @@ export async function deleteMember(
   if (profileId === userId)
     return { error: "자신의 계정은 삭제할 수 없습니다" };
 
-  // Step 4: Delete the profiles row with count:'exact' so we know if RLS
-  // silently blocked the operation
-  const supabase = await createClient();
-  const { error, count } = await supabase
-    .from("profiles")
-    .delete({ count: "exact" })
-    .eq("id", profileId);
+  // Step 4: Delete the auth.users record using the Admin API (service_role key).
+  // The profiles row is automatically deleted via the ON DELETE CASCADE constraint.
+  const adminClient = createAdminClient();
+  const { error: deleteError } =
+    await adminClient.auth.admin.deleteUser(profileId);
 
-  if (error) return { error: error.message };
-  if (count === 0) return { error: "해당 회원을 찾을 수 없습니다" };
+  if (deleteError) {
+    // AuthApiError with status 404 means the user does not exist in auth.users
+    return { error: deleteError.message };
+  }
 
   // Step 5: Revalidate the admin members page so the card disappears
   revalidatePath("/admin/members");
