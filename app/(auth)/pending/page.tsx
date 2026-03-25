@@ -1,4 +1,4 @@
-import { Clock } from "lucide-react";
+import { CheckCircle2, Circle, Clock } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -31,20 +31,43 @@ export default function PendingPage() {
           <CardDescription>가입 신청이 접수되었습니다.</CardDescription>
         </CardHeader>
 
-        <CardContent className="flex flex-col gap-4 text-center">
+        <CardContent className="flex flex-col gap-4">
+          {/* Step checklist — shows the user's current progress in the signup flow */}
+          <ul className="flex flex-col gap-2">
+            {/* Step 1: Email verified — always complete by the time user reaches this page */}
+            <li className="flex items-center gap-2">
+              <CheckCircle2 className="size-5 shrink-0 text-green-600" />
+              <span className="text-sm">이메일 인증 완료</span>
+            </li>
+
+            {/* Step 2: Profile info submitted — always complete after onboarding */}
+            <li className="flex items-center gap-2">
+              <CheckCircle2 className="size-5 shrink-0 text-green-600" />
+              <span className="text-sm">기본 정보 입력 완료</span>
+            </li>
+
+            {/* Step 3: Admin approval — pending, no animation */}
+            <li className="flex items-center gap-2">
+              <Circle className="size-5 shrink-0 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                관리자 승인 대기 중
+              </span>
+            </li>
+          </ul>
+
           {/* Main guidance text */}
-          <p className="text-sm text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground">
             관리자가 검토 후 승인하면 모든 기능을 이용하실 수 있습니다. 승인까지
             1-2 영업일이 소요될 수 있습니다.
           </p>
 
           {/* Contact information */}
-          <p className="text-sm text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground">
             문의 사항은 동문회 운영진에게 연락해주세요.
           </p>
 
           {/* Logout button — Client Component that calls supabase.auth.signOut() */}
-          <div className="mt-2">
+          <div className="mt-2 text-center">
             <LogoutButton />
           </div>
         </CardContent>
