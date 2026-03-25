@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { Calendar, Clock, MapPin, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
