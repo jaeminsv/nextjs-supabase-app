@@ -71,15 +71,20 @@ function getRoleLabel(role: ProfileRole): string {
 /**
  * Builds a concise KAIST education summary string from a profile.
  * Only includes degree types where the graduation year is set.
+ * Uses the same short format as the event attendee list.
  *
- * Example output: "학사 2010 · 석사 2012"
+ * Example output: "BS'04 / MS'10"
  */
 function buildEducationSummary(profile: Profile): string {
+  // Collect whichever degree labels are available, using 2-digit year suffix
   const parts: string[] = [];
-  if (profile.kaist_bs_year) parts.push(`학사 ${profile.kaist_bs_year}`);
-  if (profile.kaist_ms_year) parts.push(`석사 ${profile.kaist_ms_year}`);
-  if (profile.kaist_phd_year) parts.push(`박사 ${profile.kaist_phd_year}`);
-  return parts.join(" · ");
+  if (profile.kaist_bs_year)
+    parts.push(`BS'${String(profile.kaist_bs_year).slice(2)}`);
+  if (profile.kaist_ms_year)
+    parts.push(`MS'${String(profile.kaist_ms_year).slice(2)}`);
+  if (profile.kaist_phd_year)
+    parts.push(`PhD'${String(profile.kaist_phd_year).slice(2)}`);
+  return parts.join(" / ");
 }
 
 // ─── Delete Confirm Dialog ────────────────────────────────────────────────────
@@ -246,6 +251,8 @@ function PendingCard({ profile }: { profile: Profile }) {
 
 function MemberCard({ profile }: { profile: Profile }) {
   const joinDate = new Date(profile.created_at).toLocaleDateString("ko-KR");
+  // Build KAIST education summary using the same format as the event attendee list
+  const educationSummary = buildEducationSummary(profile);
 
   // Track promotion and deletion loading states independently
   const [isPromotePending, startPromoteTransition] = useTransition();
@@ -287,6 +294,12 @@ function MemberCard({ profile }: { profile: Profile }) {
       <div className="mb-1 text-sm text-muted-foreground">
         가입일: {joinDate}
       </div>
+      {/* Show KAIST education summary if any degree year is available */}
+      {educationSummary && (
+        <div className="mb-1 text-sm text-muted-foreground">
+          KAIST: {educationSummary}
+        </div>
+      )}
       {/* Show company and/or job title if at least one is available */}
       {(profile.company || profile.job_title) && (
         <div className="mb-3 text-sm text-muted-foreground">
