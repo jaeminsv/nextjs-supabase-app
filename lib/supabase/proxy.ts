@@ -88,15 +88,39 @@ export async function updateSession(request: NextRequest) {
       .eq("id", user.sub)
       .single();
 
-    // If the profile query fails (rate limit, network error, etc.),
-    // skip all role-based redirects and let the page handle the missing data.
-    // This prevents infinite redirect loops caused by null profile propagating
-    // through the routing checks.
+    // Handle profile query errors with safe fallbacks to prevent exposing
+    // protected content when the query fails for any reason.
     if (profileError) {
+      // PGRST116: "no rows returned" — profile row doesn't exist yet.
+      // This happens when the DB trigger hasn't completed after email sign-up
+      // (timing issue), or when the user is genuinely new with no profile.
+      // Safe action: send to /onboarding so the user can create their profile.
+      if (profileError.code === "PGRST116") {
+        if (pathname !== "/onboarding") {
+          const url = request.nextUrl.clone();
+          url.pathname = "/onboarding";
+          return NextResponse.redirect(url);
+        }
+        // Already at /onboarding — let the page render normally
+        return supabaseResponse;
+      }
+
+      // Other transient errors (rate limit, network issue, etc.).
+      // Only pass through if the user is already on a safe page (/pending,
+      // /onboarding) to avoid redirect loops. Otherwise redirect to login
+      // as the safest fallback so protected content is never exposed.
       console.error(
-        "[proxy] profile query failed, skipping role routing:",
+        "[proxy] profile query failed, redirecting to safe page:",
         profileError.message,
       );
+      const isSafePage = ["/pending", "/onboarding"].some((p) =>
+        pathname.startsWith(p),
+      );
+      if (!isSafePage) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/auth/login";
+        return NextResponse.redirect(url);
+      }
       return supabaseResponse;
     }
 

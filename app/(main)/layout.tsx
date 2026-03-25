@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/navigation/app-header";
 import { MobileTabBar } from "@/components/navigation/mobile-tab-bar";
 import { createClient } from "@/lib/supabase/server";
@@ -30,24 +31,38 @@ export default async function MainLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Fetch the current user's role to show role-based tabs (e.g. admin menu).
-  // Uses getClaims() for the user ID (no network call), then queries the profile.
-  // Falls back to 'member' if the query fails so the layout always renders.
+  // Defense-in-depth role guard: even if proxy.ts fails to redirect (e.g.,
+  // due to a transient DB error), this layout blocks pending/incomplete users
+  // from accessing any (main) route (/dashboard, /events, /profile, /admin/*).
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
 
-  let userRole: "member" | "admin" = "member";
-  if (userId) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", userId)
-      .single();
-    if (profile?.role === "admin") {
-      userRole = "admin";
-    }
+  // Fetch role AND full_name to detect both incomplete onboarding and pending approval.
+  // proxy.ts handles unauthenticated users, so userId missing here is an edge case.
+  const { data: profile } = userId
+    ? await supabase
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", userId)
+        .single()
+    : { data: null };
+
+  // Guard 1: No profile or onboarding not completed (full_name is empty).
+  // The DB trigger creates a stub with full_name='' — onboarding sets a real name.
+  if (!profile || profile.full_name === "") {
+    redirect("/onboarding");
   }
+
+  // Guard 2: Profile exists but admin has not yet approved the user.
+  // Only 'member' and 'admin' roles may access the (main) area.
+  if (profile.role === "pending") {
+    redirect("/pending");
+  }
+
+  // Determine the tab bar role: only distinguish admin vs. regular member.
+  const userRole: "member" | "admin" =
+    profile.role === "admin" ? "admin" : "member";
 
   return (
     // h-dvh: uses dynamic viewport height to handle mobile browser chrome correctly
